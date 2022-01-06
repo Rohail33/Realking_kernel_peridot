@@ -3,6 +3,8 @@
 # Makefile for misc devices that really don't fit anywhere else.
 #
 
+ccflags-$(CONFIG_MI_HARDWARE_ID) += -I$(srctree)/drivers/misc/hwid/
+
 obj-$(CONFIG_IBM_ASM)		+= ibmasm/
 obj-$(CONFIG_IBMVMC)		+= ibmvmc.o
 obj-$(CONFIG_AD525X_DPOT)	+= ad525x_dpot.o
@@ -66,3 +68,4 @@ obj-$(CONFIG_UID_SYS_STATS)	+= uid_sys_stats.o
 obj-$(CONFIG_QSEECOM_PROXY) 	+= qseecom_proxy.o
 obj-$(CONFIG_MI_HARDWARE_ID)	+= hwid/
 obj-$(CONFIG_KINECTICS_XR_NORDIC) += kxrctrl/
+obj-$(CONFIG_MI_HARDWARE_ID) 	+= hwid/
