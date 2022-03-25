@@ -582,9 +582,8 @@ static int goodix_init_testlimits(struct goodix_ts_test *ts_test)
 		return -EINVAL;
 	}
 	if (!firmware) {
-		ts_err("request_firmware, firmware image not loaded");
-		ret = -EINVAL;
-		goto exit_free;
+		ts_err("request_firmware failed");
+		return -EINVAL;
 	}
 	if (firmware->size <= 0) {
 		ts_err("request_firmware, limits param length error,len:%zu",
@@ -700,8 +699,7 @@ static int goodix_init_testlimits(struct goodix_ts_test *ts_test)
 
 exit_free:
 	kfree(temp_buf);
-	if (firmware)
-		release_firmware(firmware);
+	release_firmware(firmware);
 	return ret;
 }
 
@@ -1543,7 +1541,7 @@ static void goodix_cache_deltadata(struct goodix_ts_test *ts_test)
 				max_val = MAX(max_val, temp);
 			}
 			/* calcu delta with left node */
-			if (j % tx) {
+			if (j > 0 && j % tx) {
 				temp = ts_test->rawdata[i].data[j - 1];
 				temp = ABS(temp - raw);
 				max_val = MAX(max_val, temp);
@@ -2840,7 +2838,8 @@ static void goodix_put_test_result(struct goodix_ts_test *ts_test,
 
 	/* calculate self_rawdata min avg max value*/
 	if (ts_test->test_params.test_items[GTP_SELFCAP_TEST]) {
-		if (ts_test->self_rawdata.size) {
+		if (ts_test->self_rawdata.size <=
+			sizeof(ts_test->self_rawdata.data) / sizeof(ts_test->self_rawdata.data[0])) {
 			goodix_data_statistics(
 					ts_test->self_rawdata.data,
 					ts_test->self_rawdata.size,
@@ -2857,7 +2856,8 @@ static void goodix_put_test_result(struct goodix_ts_test *ts_test,
 
 	/* calculate self_noisedata min avg max value*/
 	if (ts_test->test_params.test_items[GTP_SELFNOISE_TEST]) {
-		if (ts_test->self_noisedata.size) {
+		if (ts_test->self_noisedata.size <=
+			sizeof(ts_test->self_noisedata.data) / sizeof(ts_test->self_noisedata.data[0])) {
 			goodix_data_statistics(
 					ts_test->self_noisedata.data,
 					ts_test->self_noisedata.size,
