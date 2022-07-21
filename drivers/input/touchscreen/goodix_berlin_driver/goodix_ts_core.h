@@ -44,6 +44,8 @@
 
 #define GOODIX_CORE_DRIVER_NAME			"goodix_ts"
 #define GOODIX_PEN_DRIVER_NAME			"goodix_ts,pen"
+#define GOODIX_CORE_DEVICE_NAME			"goodix_ts"
+#define GOODIX_CORE_DEVICE_2_NAME		"goodix_ts2"
 #define GOODIX_DRIVER_VERSION			"v1.2.4"
 #define GOODIX_MAX_TOUCH				10
 #define GOODIX_PEN_MAX_PRESSURE			4096
@@ -122,6 +124,12 @@ enum GOODIX_IC_CONFIG_TYPE {
 enum CHECKSUM_MODE {
 	CHECKSUM_MODE_U8_LE,
 	CHECKSUM_MODE_U16_LE,
+};
+
+enum DUAL_TOUCH_TYPE {
+	PRIMARY_TOUCH_IDX,
+	SECONDARY_TOUCH_IDX,
+	MAX_SUPPORTED_TOUCH_PANELS,
 };
 
 #define MAX_SCAN_FREQ_NUM            8
@@ -742,7 +750,7 @@ int inspect_module_init(void);
 void inspect_module_exit(void);
 int goodix_tools_init(void);
 void goodix_tools_exit(void);
-int goodix_ts_esd_init(struct goodix_ts_core *cd);
+int goodix_get_touch_type(struct device_node *np);
 
 /* goodix FB test */
 /*

@@ -178,3 +178,25 @@ int goodix_get_ic_type(struct device_node *node, const struct of_device_id *good
 
 	return ret;
 }
+
+/* get touch type */
+int goodix_get_touch_type(struct device_node *node)
+{
+	const char *touch_type;
+	int ret;
+
+	ret = of_property_read_string(node, "goodix,touch-type", &touch_type);
+	if (ret) {
+		ts_err("No touch type found\n");
+		return -EINVAL;
+	}
+
+	if (!strcmp(touch_type, "primary"))
+		ret = PRIMARY_TOUCH_IDX;
+	else if (!strcmp(touch_type, "secondary"))
+		ret = SECONDARY_TOUCH_IDX;
+	else
+		ret = -EINVAL;
+
+	return ret;
+}

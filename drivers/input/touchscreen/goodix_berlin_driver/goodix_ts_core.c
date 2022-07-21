@@ -71,6 +71,9 @@ static void goodix_register_for_panel_events(struct device_node *dp,
 
 struct goodix_module goodix_modules;
 int core_module_prob_sate = CORE_MODULE_UNPROBED;
+struct mutex goodix_later_init_tmutex;
+
+int goodix_ts_esd_init(struct goodix_ts_core *cd);
 
 static int goodix_send_ic_config(struct goodix_ts_core *cd, int type);
 /**
@@ -2420,6 +2423,14 @@ void xiaomi_touch_init(void)
 int goodix_ts_stage2_init(struct goodix_ts_core *cd)
 {
 	int ret;
+	struct goodix_bus_interface *bus_interface;
+	struct device_node *node;
+	bool is_primary;
+
+	bus_interface = cd->bus;
+	node = bus_interface->dev->of_node;
+	is_primary = (goodix_get_touch_type(node) == PRIMARY_TOUCH_IDX) ? 1 : 0;
+
 
 	/* alloc/config/register input device */
 	ret = goodix_ts_input_dev_config(cd);
@@ -2464,7 +2475,7 @@ int goodix_ts_stage2_init(struct goodix_ts_core *cd)
 	}
 	INIT_DELAYED_WORK(&cd->gesture_work, goodix_set_gesture_work);
 #if defined(CONFIG_DRM)
-	if (active_panel)
+	if (is_primary && active_panel)
 		goodix_register_for_panel_events(cd->bus->dev->of_node, cd);
 	else
 		ts_err("No panel found");
@@ -2476,6 +2487,9 @@ int goodix_ts_stage2_init(struct goodix_ts_core *cd)
 #endif
 	/* create sysfs files */
 	goodix_ts_sysfs_init(cd);
+
+	if (!is_primary)
+		return 0;
 
 	/* create procfs files */
 	goodix_ts_procfs_init(cd);
@@ -2605,6 +2619,7 @@ upgrade:
 		cd->hw_ops->set_coor_mode(cd);
 	}
 
+	mutex_unlock(&goodix_later_init_tmutex);
 	return 0;
 
 uninit_fw:
@@ -2616,6 +2631,7 @@ err_out:
 		kfree(cd->ic_configs[i]);
 		cd->ic_configs[i] = NULL;
 	}
+	mutex_unlock(&goodix_later_init_tmutex);
 	return ret;
 }
 
@@ -2712,8 +2728,12 @@ static int goodix_ts_probe(struct platform_device *pdev)
 	struct goodix_bus_interface *bus_interface;
 	int ret;
 	struct device_node *node;
+	bool is_primary;
 
 	ts_info("%s IN", __func__);
+
+	if (!core_module_prob_sate)
+		mutex_init(&goodix_later_init_tmutex);
 
 	bus_interface = pdev->dev.platform_data;
 	if (!bus_interface) {
@@ -2722,6 +2742,7 @@ static int goodix_ts_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	node = bus_interface->dev->of_node;
+	is_primary = (goodix_get_touch_type(node) == PRIMARY_TOUCH_IDX) ? 1 : 0;
 
 #if defined(CONFIG_DRM)
 	ret = goodix_check_ts_id_gpio(&pdev->dev, node);
@@ -2774,7 +2795,9 @@ static int goodix_ts_probe(struct platform_device *pdev)
 		core_module_prob_sate = CORE_MODULE_PROB_FAILED;
 		return -EINVAL;
 	}
-	goodix_core_module_init();
+
+	if (is_primary)
+		goodix_core_module_init();
 	/* touch core layer is a platform driver */
 	core_data->pdev = pdev;
 	core_data->bus = bus_interface;
@@ -2804,13 +2827,14 @@ static int goodix_ts_probe(struct platform_device *pdev)
 	goodix_ts_register_notifier(&core_data->ts_notifier);
 
 	/* debug node init */
-	goodix_tools_init();
+	if (is_primary)
+		goodix_tools_init();
 	core_data->fod_status = 1;
 	core_data->udfps_enabled = 1;
 	core_data->udfps_pressed = 0;
 
 	core_data->init_stage = CORE_INIT_STAGE1;
-  core_data->report_rate = 240;
+        core_data->report_rate = 240;
 	goodix_modules.core_data = core_data;
 	core_module_prob_sate = CORE_MODULE_PROB_SUCCESS;
 	ts_core = core_data;
@@ -2891,7 +2915,8 @@ static const struct dev_pm_ops dev_pm_ops = {
 #endif
 
 static const struct platform_device_id ts_core_ids[] = {
-	{.name = GOODIX_CORE_DRIVER_NAME},
+	{.name = GOODIX_CORE_DEVICE_NAME},
+	{.name = GOODIX_CORE_DEVICE_2_NAME},
 	{}
 };
 MODULE_DEVICE_TABLE(platform, ts_core_ids);

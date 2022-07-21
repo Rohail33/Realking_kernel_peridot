@@ -32,7 +32,7 @@
 #define SPI_READ_FLAG   0xF1
 
 static struct platform_device *goodix_pdev;
-struct goodix_bus_interface goodix_spi_bus;
+struct goodix_bus_interface goodix_spi_bus[MAX_SUPPORTED_TOUCH_PANELS];
 
 /**
  * goodix_spi_read_bra- read device register through spi bus
@@ -203,7 +203,7 @@ static const struct of_device_id spi_matchs[] = {
 
 static int goodix_spi_probe(struct spi_device *spi)
 {
-	int ret = 0;
+	int ret = 0, idx;
 
 	ts_info("goodix spi probe in");
 
@@ -222,20 +222,30 @@ static int goodix_spi_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	goodix_spi_bus.ic_type = ret;
-	goodix_spi_bus.bus_type = GOODIX_BUS_TYPE_SPI;
-	goodix_spi_bus.dev = &spi->dev;
-	if (goodix_spi_bus.ic_type == IC_TYPE_BERLIN_A)
-		goodix_spi_bus.read = goodix_spi_read_bra;
+	idx = goodix_get_touch_type(spi->dev.of_node);
+	if (idx < 0 || idx >= MAX_SUPPORTED_TOUCH_PANELS) {
+		ts_err("unsupported touch type idx:%d", idx);
+		return -ENODEV;
+	}
+
+	goodix_spi_bus[idx].ic_type = ret;
+	goodix_spi_bus[idx].bus_type = GOODIX_BUS_TYPE_SPI;
+	goodix_spi_bus[idx].dev = &spi->dev;
+	if (goodix_spi_bus[idx].ic_type == IC_TYPE_BERLIN_A)
+		goodix_spi_bus[idx].read = goodix_spi_read_bra;
 	else
-		goodix_spi_bus.read = goodix_spi_read;
-	goodix_spi_bus.write = goodix_spi_write;
+		goodix_spi_bus[idx].read = goodix_spi_read;
+	goodix_spi_bus[idx].write = goodix_spi_write;
 	/* ts core device */
 	goodix_pdev = kzalloc(sizeof(struct platform_device), GFP_KERNEL);
 	if (!goodix_pdev)
 		return -ENOMEM;
 
-	goodix_pdev->name = GOODIX_CORE_DRIVER_NAME;
+	if (idx)
+		goodix_pdev->name = GOODIX_CORE_DEVICE_2_NAME;
+	else
+		goodix_pdev->name = GOODIX_CORE_DEVICE_NAME;
+
 	goodix_pdev->id = 0;
 	goodix_pdev->num_resources = 0;
 	/*
@@ -243,7 +253,7 @@ static int goodix_spi_probe(struct spi_device *spi)
 	 * /sys/devices/platfrom/goodix_ts.0
 	 * goodix_pdev->dev.parent = &client->dev;
 	 */
-	goodix_pdev->dev.platform_data = &goodix_spi_bus;
+	goodix_pdev->dev.platform_data = &goodix_spi_bus[idx];
 	goodix_pdev->dev.release = goodix_pdev_release;
 
 	/*
