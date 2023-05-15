@@ -1,7 +1,7 @@
  /*
   * Goodix Touchscreen Driver
   * Copyright (C) 2020 - 2021 Goodix, Inc.
-  * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+  * Copyright (c) 2022 - 2023 Qualcomm Innovation Center, Inc. All rights reserved.
   *
   * This program is free software; you can redistribute it and/or modify
   * it under the terms of the GNU General Public License as published by
@@ -209,7 +209,7 @@ static int brl_reset_after(struct goodix_ts_core *cd)
 }
 
 #define REG_SUSPEND_CURRENT 20
-#define REG_RESUME_CURRENT 14000
+#define REG_RESUME_CURRENT 30000
 static int brl_power_on(struct goodix_ts_core *cd, bool on)
 {
 	int ret = 0;
