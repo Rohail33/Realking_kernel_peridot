@@ -1464,7 +1464,7 @@ include/generated/utsrelease.h: include/config/kernel.release FORCE
 	$(call filechk,utsrelease.h)
 
 filechk_compile.h = $(srctree)/scripts/mkcompile_h \
-	"$(UTS_MACHINE)" "$(CONFIG_CC_VERSION_TEXT)" "$(LD)"
+	"$(UTS_MACHINE)" "$(CC)" "$(LD)"
 
 include/generated/compile.h: FORCE
 	$(call filechk,compile.h)
