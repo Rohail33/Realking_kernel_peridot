@@ -13,6 +13,7 @@ add-overlays = $(foreach o,$1,$(foreach b,$2,$(eval $(basename $b)-$(basename $o
 
 ifneq ($(CONFIG_ARCH_QTI_VM), y)
 
+ifeq ($(CONFIG_ARCH_CLIFFS),n)
 PINEAPPLE_BASE_DTB += pineapple.dtb pineapple-v2.dtb
 PINEAPPLE_APQ_BASE_DTB += pineapplep.dtb pineapplep-v2.dtb
 
@@ -45,6 +46,7 @@ shennong-overlays-dtb-$(CONFIG_ARCH_PINEAPPLE) += $(PINEAPPLE_BOARDS) $(NOAPQ_PI
 manet-overlays-dtb-$(CONFIG_ARCH_PINEAPPLE) += $(PINEAPPLE_BOARDS) $(NOAPQ_PINEAPPLE_BOARDS) $(PINEAPPLE_BASE_DTB) $(PINEAPPLE_APQ_BASE_DTB)
 aurora-overlays-dtb-$(CONFIG_ARCH_PINEAPPLE) += $(PINEAPPLE_BOARDS) $(NOAPQ_PINEAPPLE_BOARDS) $(PINEAPPLE_BASE_DTB) $(PINEAPPLE_APQ_BASE_DTB)
 houji-overlays-dtb-$(CONFIG_ARCH_PINEAPPLE) += $(PINEAPPLE_BOARDS) $(NOAPQ_PINEAPPLE_BOARDS) $(PINEAPPLE_BASE_DTB) $(PINEAPPLE_APQ_BASE_DTB)
+endif
 
 CLIFFS_BASE_DTB += cliffs.dtb cliffs7.dtb
 CLIFFS_APQ_BASE_DTB += cliffsp.dtb cliffs7p.dtb
