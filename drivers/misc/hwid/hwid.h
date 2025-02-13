@@ -18,6 +18,11 @@
 #define HARDWARE_PROJECT_N11U       5 // manet
 #define HARDWARE_PROJECT_N18    	6 // goku
 #define HARDWARE_PROJECT_O11    	7 // zorn
+// SM8635
+#define HARDWARE_PROJECT_N16T    	8  // peridot
+#define HARDWARE_PROJECT_N9       	9  // chenfeng
+#define HARDWARE_PROJECT_O81    	10 // muyu
+#define HARDWARE_PROJECT_O82    	11 // uke
 
 typedef enum {
 	CountryCN = 0x00,
