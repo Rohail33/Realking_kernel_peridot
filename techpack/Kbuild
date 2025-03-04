@@ -2,7 +2,7 @@
 TECHPACK?=y
 
 export KERNEL_ROOT=$(srctree)
-export KERNEL_SRC=$(srctree)
+
 export MMRM_ROOT=$(srctree)/techpack/mmrm-driver
 export KERNEL_ROOT=$(srctree)
 export MM_ROOT=$(srctree)/techpack/mm-drivers
