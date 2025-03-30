@@ -81,7 +81,8 @@ static int _nfs42_proc_fallocate(struct rpc_message *msg, struct file *filep,
 	if (status == 0) {
 		if (nfs_should_remove_suid(inode)) {
 			spin_lock(&inode->i_lock);
-			nfs_set_cache_invalid(inode, NFS_INO_INVALID_MODE);
+			nfs_set_cache_invalid(inode,
+				NFS_INO_REVAL_FORCED | NFS_INO_INVALID_MODE);
 			spin_unlock(&inode->i_lock);
 		}
 		status = nfs_post_op_update_inode_force_wcc(inode,
@@ -217,7 +218,7 @@ static int handle_async_copy(struct nfs42_copy_res *res,
 
 	if (dst_server != src_server) {
 		spin_lock(&src_server->nfs_client->cl_lock);
-		list_add_tail(&copy->src_copies, &src_server->ss_copies);
+		list_add_tail(&copy->src_copies, &src_server->ss_src_copies);
 		spin_unlock(&src_server->nfs_client->cl_lock);
 	}
 
@@ -550,7 +551,7 @@ static int nfs42_do_offload_cancel_async(struct file *dst,
 		.rpc_message = &msg,
 		.callback_ops = &nfs42_offload_cancel_ops,
 		.workqueue = nfsiod_workqueue,
-		.flags = RPC_TASK_ASYNC,
+		.flags = RPC_TASK_ASYNC | RPC_TASK_MOVEABLE,
 	};
 	int status;
 

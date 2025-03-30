@@ -70,6 +70,7 @@ struct resv_map {
 	long adds_in_progress;
 	struct list_head region_cache;
 	long region_cache_count;
+	struct rw_semaphore rw_sema;
 #ifdef CONFIG_CGROUP_HUGETLB
 	/*
 	 * On private mappings, the counter to uncharge reservations is stored
@@ -669,6 +670,7 @@ HPAGEFLAG(RawHwpUnreliable, raw_hwp_unreliable)
 /* Defines one hugetlb page size */
 struct hstate {
 	struct mutex resize_lock;
+	struct lock_class_key resize_key;
 	int next_nid_to_alloc;
 	int next_nid_to_free;
 	unsigned int order;
@@ -878,6 +880,8 @@ static inline bool hugepage_migration_supported(struct hstate *h)
 {
 	return arch_hugetlb_migration_supported(h);
 }
+
+bool __vma_private_lock(struct vm_area_struct *vma);
 
 /*
  * Movability check is different as compared to migration check.

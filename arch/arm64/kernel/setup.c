@@ -58,6 +58,7 @@
 
 static int num_standard_resources;
 static struct resource *standard_resources;
+struct hypervisor_ops hyp_ops;
 
 phys_addr_t __fdt_pointer __initdata;
 
@@ -365,9 +366,6 @@ void __init __no_sanitize_address setup_arch(char **cmdline_p)
 	init_bootcpu_ops();
 	smp_init_cpus();
 	smp_build_mpidr_hash();
-
-	/* Init percpu seeds for random tags after cpus are set up. */
-	kasan_init_sw_tags();
 
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
 	/*

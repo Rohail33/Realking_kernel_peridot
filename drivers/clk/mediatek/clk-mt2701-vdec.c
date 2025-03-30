@@ -31,6 +31,7 @@ static const struct mtk_gate_regs vdec1_cg_regs = {
 	GATE_MTK(_id, _name, _parent, &vdec1_cg_regs, _shift, &mtk_clk_gate_ops_setclr_inv)
 
 static const struct mtk_gate vdec_clks[] = {
+	GATE_DUMMY(CLK_DUMMY, "vdec_dummy"),
 	GATE_VDEC0(CLK_VDEC_CKGEN, "vdec_cken", "vdec_sel", 0),
 	GATE_VDEC1(CLK_VDEC_LARB, "vdec_larb_cken", "mm_sel", 0),
 };
@@ -57,5 +58,5 @@ static struct platform_driver clk_mt2701_vdec_drv = {
 		.of_match_table = of_match_clk_mt2701_vdec,
 	},
 };
-
-builtin_platform_driver(clk_mt2701_vdec_drv);
+module_platform_driver(clk_mt2701_vdec_drv);
+MODULE_LICENSE("GPL");
