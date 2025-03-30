@@ -794,16 +794,6 @@ static struct qcom_icc_node qxm_ecc = {
 	.links = { SLAVE_LLCC },
 };
 
-static struct qcom_icc_node ipa_core_master = {
-	.name = "ipa_core_master",
-	.id = MASTER_IPA_CORE,
-	.channels = 1,
-	.buswidth = 8,
-	.noc_ops = &qcom_qnoc4_ops,
-	.num_links = 1,
-	.links = { SLAVE_IPA_CORE },
-};
-
 static struct qcom_icc_node llcc_mc = {
 	.name = "llcc_mc",
 	.id = MASTER_LLCC,
@@ -1761,15 +1751,6 @@ static struct qcom_icc_node srvc_gemnoc = {
 	.num_links = 0,
 };
 
-static struct qcom_icc_node ipa_core_slave = {
-	.name = "ipa_core_slave",
-	.id = SLAVE_IPA_CORE,
-	.channels = 1,
-	.buswidth = 8,
-	.noc_ops = &qcom_qnoc4_ops,
-	.num_links = 0,
-};
-
 static struct qcom_icc_node ebi = {
 	.name = "ebi",
 	.id = SLAVE_EBI1,
@@ -1951,6 +1932,7 @@ static struct qcom_icc_node qns_mem_noc_hf_disp = {
 
 static struct qcom_icc_bcm bcm_acv = {
 	.name = "ACV",
+	.enable_mask = BIT(3),
 	.voter_idx = 0,
 	.num_nodes = 1,
 	.nodes = { &ebi },
@@ -2011,14 +1993,6 @@ static struct qcom_icc_bcm bcm_co1 = {
 	.keepalive = true,
 	.num_nodes = 1,
 	.nodes = { &qnm_npu },
-};
-
-static struct qcom_icc_bcm bcm_ip0 = {
-	.name = "IP0",
-	.voter_idx = 0,
-	.qos_proxy = true,
-	.num_nodes = 1,
-	.nodes = { &ipa_core_slave },
 };
 
 static struct qcom_icc_bcm bcm_mc0 = {
@@ -2284,7 +2258,6 @@ static struct qcom_icc_bcm *aggre2_noc_bcms[] = {
 	&bcm_qup0,
 	&bcm_sn3,
 	&bcm_sn14,
-	&bcm_ip0,
 };
 
 static struct qcom_icc_node *aggre2_noc_nodes[] = {

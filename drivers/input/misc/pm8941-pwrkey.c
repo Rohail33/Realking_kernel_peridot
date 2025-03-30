@@ -92,6 +92,7 @@ struct pm8941_pwrkey {
 	u32 req_delay;
 	bool last_status;
 	bool pull_up;
+	bool log_kpd_event;
 	const struct pm8941_data *data;
 };
 
@@ -254,6 +255,10 @@ static irqreturn_t pm8941_pwrkey_irq(int irq, void *_data)
 	if (err)
 		return IRQ_HANDLED;
 
+	if (pwrkey->log_kpd_event)
+		pr_info_ratelimited("PMIC input: KPDPWR status=0x%02x, KPDPWR_ON=%d\n",
+			sts, !!(sts & pwrkey->data->status_bit));
+
 	sts &= pwrkey->data->status_bit;
 
 	if (pwrkey->sw_debounce_time_us && !sts)
@@ -330,7 +335,7 @@ static int pm8941_pwrkey_hw_init(struct pm8941_pwrkey *pwrkey)
 			delay_shift = PON_DBC_SHIFT_GEN1;
 		}
 
-		req_delay = (req_delay << delay_shift) / USEC_PER_SEC;
+		req_delay = (pwrkey->req_delay << delay_shift) / USEC_PER_SEC;
 		req_delay = ilog2(req_delay);
 
 		error = regmap_update_bits(pwrkey->regmap,
@@ -437,6 +442,7 @@ static int pm8941_pwrkey_probe(struct platform_device *pdev)
 	struct device_node *regmap_node;
 	const __be32 *addr;
 	u32 req_delay;
+	unsigned int sts;
 	int error;
 
 	if (of_property_read_u32(pdev->dev.of_node, "debounce", &req_delay))
@@ -540,6 +546,18 @@ static int pm8941_pwrkey_probe(struct platform_device *pdev)
 	error = pm8941_pwrkey_sw_debounce_init(pwrkey);
 	if (error)
 		return error;
+
+	pwrkey->log_kpd_event = of_property_read_bool(pdev->dev.of_node, "qcom,log-kpd-event");
+
+	if (pwrkey->log_kpd_event) {
+		error = regmap_read(pwrkey->regmap,
+				    pwrkey->baseaddr + PON_RT_STS, &sts);
+		if (error)
+			dev_err(&pdev->dev, "failed to read PON_RT_STS rc=%d\n", error);
+		else
+			pr_info("KPDPWR status at init=0x%02x, KPDPWR_ON=%d\n",
+				sts, (sts & PON_KPDPWR_N_SET));
+	}
 
 	error = devm_request_threaded_irq(&pdev->dev, pwrkey->irq,
 					  NULL, pm8941_pwrkey_irq,

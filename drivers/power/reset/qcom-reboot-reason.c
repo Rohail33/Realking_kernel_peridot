@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2019, 2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
+#define pr_fmt(fmt)     "qcom-reboot-reason: %s: " fmt, __func__
 
 #include <linux/err.h>
 #include <linux/init.h>
@@ -14,20 +16,24 @@
 #include <linux/of_address.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/panic_notifier.h>
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
 
 struct qcom_reboot_reason {
 	struct device *dev;
 	struct notifier_block reboot_nb;
 	struct notifier_block panic_nb;
 	struct nvmem_cell *nvmem_cell;
+	struct poweroff_reason *reasons;
 };
 
 struct poweroff_reason {
 	const char *cmd;
-	unsigned char pon_reason;
+	unsigned int pon_reason;
+	unsigned int size;
 };
 
-static struct poweroff_reason reasons[] = {
+static struct poweroff_reason pon_reasons[] = {
 	{ "recovery",			0x01 },
 	{ "bootloader",			0x02 },
 	{ "rtc",			0x03 },
@@ -87,6 +93,7 @@ EXPORT_SYMBOL(ufs_ffu_reboot_reason_reboot);
 static int qcom_reboot_reason_reboot(struct notifier_block *this,
 				     unsigned long event, void *ptr)
 {
+	int rc;
 	char *cmd = ptr;
 	struct qcom_reboot_reason *reboot = container_of(this,
 		struct qcom_reboot_reason, reboot_nb);
@@ -98,7 +105,7 @@ static int qcom_reboot_reason_reboot(struct notifier_block *this,
 				 sizeof(reasons[RESTART_REASON_NORMAL].pon_reason));
 		return NOTIFY_OK;
 	}
-	for (reason = reasons; reason->cmd; reason++) {
+	for (reason = reboot->reasons; reason->cmd; reason++) {
 		if (!strcmp(cmd, reason->cmd)) {
 			/* BSP-Kernel@Xiaomi add for EIO mode */
 			if(!strcmp("dm-verity device corrupted",cmd)) {
@@ -108,7 +115,7 @@ static int qcom_reboot_reason_reboot(struct notifier_block *this,
 			else {
 				nvmem_cell_write(reboot->nvmem_cell,
 				&reason->pon_reason,
-				sizeof(reason->pon_reason));
+				reason->size);
 			}
 			return NOTIFY_OK;
 		}
@@ -150,6 +157,7 @@ static int panic_prep_restart(struct notifier_block *this,
 static int qcom_reboot_reason_probe(struct platform_device *pdev)
 {
 	struct qcom_reboot_reason *reboot;
+	const struct of_device_id *match;
 
 	reboot = devm_kzalloc(&pdev->dev, sizeof(*reboot), GFP_KERNEL);
 	if (!reboot)
@@ -157,7 +165,18 @@ static int qcom_reboot_reason_probe(struct platform_device *pdev)
 
 	reboot->dev = &pdev->dev;
 
-	reboot->nvmem_cell = nvmem_cell_get(reboot->dev, "restart_reason");
+	/*
+	 * can't use of_device_get_match_data() because it returns
+	 * const data. nvmem_cell_write() doesn't have signature to accept const data.
+	 * Hence used of_match_device().
+	 */
+
+	match = of_match_device(of_match_ptr(of_qcom_reboot_reason_match), &pdev->dev);
+	if (!match)
+		return -ENODEV;
+	reboot->reasons = (struct poweroff_reason *)match->data;
+
+	reboot->nvmem_cell = devm_nvmem_cell_get(reboot->dev, "restart_reason");
 
 	if (IS_ERR(reboot->nvmem_cell))
 		return PTR_ERR(reboot->nvmem_cell);
@@ -187,11 +206,6 @@ static int qcom_reboot_reason_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id of_qcom_reboot_reason_match[] = {
-	{ .compatible = "qcom,reboot-reason", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, of_qcom_reboot_reason_match);
 
 static struct platform_driver qcom_reboot_reason_driver = {
 	.probe = qcom_reboot_reason_probe,

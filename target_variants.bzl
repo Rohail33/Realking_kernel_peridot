@@ -22,6 +22,8 @@ target_arch_map = {
 
 la_targets = [
     # keep sorted
+    "anorak",
+    "autoghgvm",
     "autogvm",
     "autoghgvm",
     "shennong",
@@ -32,10 +34,12 @@ la_targets = [
     "chenfeng",
     "blair",
     "gen3auto",
+    "neo-la",
     "niobe",
     "pineapple",
     "pitti",
     "sdmsteppeauto",
+    "seraph",
 ]
 
 la_variants = [
@@ -57,6 +61,28 @@ lxc_targets = [
     "gen4auto",
 ]
 
+le_32_targets = [
+    # keep sorted
+    "mdm9607",
+]
+
+le_32_variants = [
+    # keep sorted
+    "debug-defconfig",
+    "perf-defconfig",
+]
+
+le_64_targets = [
+    # keep sorted
+    "pineapple-le",
+]
+
+le_64_variants = [
+    # keep sorted
+    "debug-defconfig",
+    "perf-defconfig",
+]
+
 le_targets = [
     # keep sorted
     "pineapple-allyes",
@@ -72,11 +98,21 @@ vm_types = [
     "oemvm",
 ]
 
-vm_target_bases = [
-    "pineapple",
+niobe_vm_types = [
+    "tuivm",
 ]
 
-vm_targets = ["{}-{}".format(t, vt) for t in vm_target_bases for vt in vm_types]
+vm_type_opt1 = [
+    "tuivm",
+]
+
+vm_target_bases = {
+    "pineapple": vm_types,
+    "niobe": niobe_vm_types,
+    "seraph": vm_type_opt1,
+}
+
+vm_targets = ["{}-{}".format(t, vt) for t in vm_target_bases.keys() for vt in vm_target_bases[t]]
 
 vm_variants = [
     # keep sorted
@@ -84,11 +120,22 @@ vm_variants = [
     "defconfig",
 ]
 
+lunch_target_bases = {
+    # keep sorted
+    "volcano": "pineapple",
+}
+
 def get_all_la_variants():
     return [(t, v) for t in la_targets for v in la_variants]
 
 def get_all_le_variants():
     return [(t, v) for t in le_targets for v in le_variants]
+
+def get_all_le_32_variants():
+    return [(t, v) for t in le_32_targets for v in le_32_variants]
+
+def get_all_le_64_variants():
+    return [(t, v) for t in le_64_targets for v in le_64_variants]
 
 def get_all_lxc_variants():
     return [(t, v) for t in lxc_targets for v in lxc_variants]

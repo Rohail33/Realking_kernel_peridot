@@ -7,6 +7,7 @@ qcom_scmi_client.ko
 cmd-db.ko
 qcom_rpmh.ko
 qcom-pdc.ko
+nvmem_qfprom.ko
 thermal_minidump.ko
 qcom_tsens.ko
 qcom_iommu_util.ko
@@ -34,8 +35,12 @@ clk-rpmh.ko
 dcc_v2.ko
 debug_symbol.ko
 minidump.ko
+qcom_va_minidump.ko
+qcom_logbuf_vendor_hooks.ko
+qcom_logbuf_boot_log.ko
 memory_dump_v2.ko
 dispcc-pineapple.ko
+dispcc-volcano.ko
 tcsrcc-pineapple.ko
 gpucc-pineapple.ko
 gcc-cliffs.ko
@@ -43,6 +48,7 @@ gcc-pineapple.ko
 gcc-volcano.ko
 videocc-pineapple.ko
 debug-regulator.ko
+qcom-i2c-pmic.ko
 proxy-consumer.ko
 rpmh-regulator.ko
 camcc-cliffs.ko
@@ -65,6 +71,7 @@ ufshcd-crypto-qti.ko
 mdt_loader.ko
 debug-regulator.ko
 phy-qcom-ufs.ko
+phy-qcom-ufs-qmp-v4-crow.ko
 phy-qcom-ufs-qmp-v4-pineapple.ko
 phy-qcom-ufs-qrbtc-sdm845.ko
 ufs_qcom.ko

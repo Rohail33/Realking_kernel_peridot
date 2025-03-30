@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
 
 #include <linux/cdev.h>
 #include <linux/device.h>
@@ -170,6 +170,7 @@ static int mhi_uci_release(struct inode *inode, struct file *file)
 {
 	struct uci_dev *uci_dev = file->private_data;
 
+	mutex_lock(&mhi_uci_drv.lock);
 	mutex_lock(&uci_dev->mutex);
 	uci_dev->ref_count--;
 	if (!uci_dev->ref_count) {
@@ -200,6 +201,7 @@ static int mhi_uci_release(struct inode *inode, struct file *file)
 			mutex_destroy(&uci_dev->ul_chan.chan_lock);
 			clear_bit(MINOR(uci_dev->devt), uci_minors);
 			kfree(uci_dev);
+			mutex_unlock(&mhi_uci_drv.lock);
 			return 0;
 		}
 	}
@@ -207,6 +209,7 @@ static int mhi_uci_release(struct inode *inode, struct file *file)
 	MSG_LOG("exit: ref_count:%d\n", uci_dev->ref_count);
 
 	mutex_unlock(&uci_dev->mutex);
+	mutex_unlock(&mhi_uci_drv.lock);
 
 	return 0;
 }
@@ -490,7 +493,8 @@ static int mhi_uci_open(struct inode *inode, struct file *filp)
 
 	MSG_LOG("Node open, ref counts %u\n", uci_dev->ref_count);
 
-	if (uci_dev->ref_count == 1) {
+	/* ref_count will be incremented at open and probe */
+	if (uci_dev->ref_count == 2) {
 		MSG_LOG("Starting channel\n");
 		ret = mhi_prepare_for_transfer(uci_dev->mhi_dev);
 		if (ret) {
@@ -607,6 +611,7 @@ static void mhi_uci_remove(struct mhi_device *mhi_dev)
 	device_destroy(mhi_uci_drv.class, uci_dev->devt);
 	uci_dev->dev = NULL;
 	list_del(&uci_dev->node);
+	uci_dev->ref_count--;
 	sysfs_remove_group(&mhi_dev->dev.kobj, &mhi_uci_group);
 
 	/* safe to free memory only if all file nodes are closed */
@@ -650,15 +655,15 @@ static int mhi_uci_probe(struct mhi_device *mhi_dev,
 	snprintf(node_name, sizeof(node_name), "%s_pipe_%d",
 		 dev_name(mhi_dev->dev.parent), mhi_dev->ul_chan_id);
 
-	mutex_lock(&uci_dev->mutex);
 	mutex_lock(&mhi_uci_drv.lock);
+	mutex_lock(&uci_dev->mutex);
 
 	uci_dev->devt = MKDEV(mhi_uci_drv.major, minor);
 	uci_dev->dev = device_create(mhi_uci_drv.class, &mhi_dev->dev,
 				     uci_dev->devt, uci_dev, "%s", node_name);
 	if (IS_ERR(uci_dev->dev)) {
-		mutex_unlock(&mhi_uci_drv.lock);
 		mutex_unlock(&uci_dev->mutex);
+		mutex_unlock(&mhi_uci_drv.lock);
 		mutex_destroy(&uci_dev->mutex);
 		ret = PTR_ERR(uci_dev->dev);
 		kfree(uci_dev);
@@ -688,10 +693,11 @@ static int mhi_uci_probe(struct mhi_device *mhi_dev,
 	uci_dev->actual_mtu = uci_dev->mtu -  sizeof(struct uci_buf);
 	dev_set_drvdata(&mhi_dev->dev, uci_dev);
 	uci_dev->enabled = true;
+	uci_dev->ref_count++;
 
 	list_add(&uci_dev->node, &mhi_uci_drv.head);
-	mutex_unlock(&mhi_uci_drv.lock);
 	mutex_unlock(&uci_dev->mutex);
+	mutex_unlock(&mhi_uci_drv.lock);
 
 	MSG_LOG("channel:%s successfully probed\n", mhi_dev->name);
 

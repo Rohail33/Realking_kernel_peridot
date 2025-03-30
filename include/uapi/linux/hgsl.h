@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _UAPI_MSM_HGSL_H
@@ -135,7 +135,7 @@ struct hgsl_ioctl_ctxt_create_params {
 	__u32 padding;
 };
 
-#define HGSL_IOCTL_CTXT_CREATE	HGSL_IOW(0x10,  \
+#define HGSL_IOCTL_CTXT_CREATE	HGSL_IORW(0x10,  \
 	struct hgsl_ioctl_ctxt_create_params)
 
 struct hgsl_ioctl_ctxt_destroy_params {
@@ -145,7 +145,7 @@ struct hgsl_ioctl_ctxt_destroy_params {
 	__u32 padding;
 };
 
-#define HGSL_IOCTL_CTXT_DESTROY	HGSL_IOW(0x11,  \
+#define HGSL_IOCTL_CTXT_DESTROY	HGSL_IORW(0x11,  \
 	struct hgsl_ioctl_ctxt_destroy_params)
 
 /**
@@ -163,7 +163,7 @@ struct hgsl_wait_ts_info {
 };
 
 #define HGSL_IOCTL_WAIT_TIMESTAMP \
-	HGSL_IOW(0x12,  struct hgsl_wait_ts_info)
+	HGSL_IORW(0x12,  struct hgsl_wait_ts_info)
 
 /**
  * struct hgsl_ioctl_issueib_params - submit cmds to GPU
@@ -231,6 +231,8 @@ struct hgsl_ioctl_get_shadowts_mem_params {
 	__u32 ctxthandle;
 	__u32 flags;
 	__s32 fd;
+	__u32 devhandle;
+	__u32 padding;
 };
 
 #define HGSL_IOCTL_GET_SHADOWTS_MEM \
@@ -239,6 +241,8 @@ struct hgsl_ioctl_get_shadowts_mem_params {
 struct hgsl_ioctl_put_shadowts_mem_params {
 	__u32 ctxthandle;
 	__u32 padding;
+	__u32 devhandle;
+	__u32 padding_1;
 };
 
 #define HGSL_IOCTL_PUT_SHADOWTS_MEM \
@@ -395,24 +399,27 @@ struct hgsl_ioctl_perfcounter_read_params {
 /**
  * struct hgsl_hsync_fence_create - wait a h-sync fence
  * @timestamp: The user timestamp attached to the fence
- * @context_id; The conext to create fence
+ * @context_id: The conext to create fence
  * @fence_fd: File descriptor of the new created fence
+ * @devhandle GPU device handle
  */
 struct hgsl_hsync_fence_create {
 	__u32 timestamp;
 	__u32 padding;
 	__s32 context_id;
 	__s32 fence_fd;
+	__u32 devhandle;
+	__u32 padding_1;
 };
 
 #define HGSL_IOCTL_HSYNC_FENCE_CREATE \
-				HGSL_IOW(0x13, struct hgsl_hsync_fence_create)
+				HGSL_IORW(0x13, struct hgsl_hsync_fence_create)
 
 /**
  * Create an i-fence timeline - param is id of the new timeline
  */
 #define HGSL_IOCTL_ISYNC_TIMELINE_CREATE \
-				HGSL_IOW(0x14, __u32)
+				HGSL_IORW(0x14, __u32)
 
 /**
  * Destroy an i-fence timeline - param is id of timeline to be released
@@ -436,7 +443,7 @@ struct hgsl_isync_create_fence {
 	__u32 padding;
 };
 #define HGSL_IOCTL_ISYNC_FENCE_CREATE	\
-				HGSL_IOW(0x16,  \
+				HGSL_IORW(0x16,  \
 					 struct hgsl_isync_create_fence)
 
 /**
@@ -549,5 +556,18 @@ struct hgsl_timeline_wait {
 
 #define HGSL_IOCTL_TIMELINE_WAIT \
 				HGSL_IOW(0x1C, struct hgsl_timeline_wait)
+
+/**
+ * struct hgsl_ioctl_mem_get_fd_params - get fd from memdesc
+ * @memdesc: According to memdesc to find the mem node
+ * @fd: The fd of dmabuf mem node
+ */
+struct hgsl_ioctl_mem_get_fd_params {
+	__u64 memdesc;
+	__s32 fd;
+};
+
+#define HGSL_IOCTL_MEM_GET_FD \
+				HGSL_IORW(0x1D, struct hgsl_ioctl_mem_get_fd_params)
 
 #endif /* _UAPI_MSM_HGSL_H */

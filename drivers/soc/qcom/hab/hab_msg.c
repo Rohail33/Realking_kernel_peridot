@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include "hab.h"
 #include "hab_grantable.h"
+#include "hab_trace_os.h"
 
 static int hab_rx_queue_empty(struct virtual_channel *vchan)
 {
@@ -235,21 +236,29 @@ static void hab_msg_queue(struct virtual_channel *vchan,
 	list_add_tail(&message->node, &vchan->rx_list);
 	hab_spin_unlock(&vchan->rx_lock, irqs_disabled);
 
+	trace_hab_pchan_recv_wakeup(vchan->pchan);
+
 	wake_up(&vchan->rx_queue);
 }
 
 static int hab_export_enqueue(struct virtual_channel *vchan,
-		struct export_desc *exp)
+		struct export_desc *export)
 {
 	struct uhab_context *ctx = vchan->ctx;
+	struct export_desc_super *exp_super = container_of(export, struct export_desc_super, exp);
 	int irqs_disabled = irqs_disabled();
+	struct export_desc_super *ret;
 
 	hab_spin_lock(&ctx->imp_lock, irqs_disabled);
-	list_add_tail(&exp->node, &ctx->imp_whse);
-	ctx->import_total++;
+	ret = hab_rb_exp_insert(&ctx->imp_whse, exp_super);
+	if (ret != NULL)
+		pr_err("expid %u already exists on vc %x, size %d\n",
+			export->export_id, vchan->id, PAGE_SIZE * export->payload_count);
+	else
+		ctx->import_total++;
 	hab_spin_unlock(&ctx->imp_lock, irqs_disabled);
 
-	return 0;
+	return (ret == NULL) ? 0 : -EINVAL;
 }
 
 /*
@@ -478,7 +487,20 @@ static int hab_receive_export_desc(struct physical_channel *pchan,
 			pchan->vmid_remote, exp_desc->domid_local);
 	exp_desc->domid_remote = pchan->vmid_remote;
 	exp_desc->domid_local = pchan->vmid_local;
+	/*
+	 * re-init pchan, vchan to local pointers for local usage.
+	 * exp->ctx is left un-initialized due to no local usage.
+	 */
 	exp_desc->pchan = pchan;
+	exp_desc->vchan = vchan;
+
+	if (vchan->id != exp_desc->vcid_remote) {
+		pr_err("exp_desc received on vc %x, not expected vc %x\n",
+		    vchan->id, exp_desc->vcid_remote);
+		ret = -EINVAL;
+		goto err_imp;
+	}
+
 	if (pchan->mem_proto == 1) {
 		exp_desc->vcid_remote = exp_desc->vcid_local;
 		exp_desc->vcid_local = vchan->id;
@@ -535,19 +557,22 @@ static int hab_receive_export_desc(struct physical_channel *pchan,
 		ack_recvd->ack.export_id = exp_desc->export_id;
 		ack_recvd->ack.vcid_local = exp_desc->vcid_local;
 		ack_recvd->ack.vcid_remote = exp_desc->vcid_remote;
-		ack_recvd->ack.imp_whse_added = 1;
 	}
 
-	hab_export_enqueue(vchan, exp_desc);
+	ret = hab_export_enqueue(vchan, exp_desc);
 
 	if (pchan->mem_proto == 1) {
+		ack_recvd->ack.imp_whse_added = ret ? 0 : 1;
 		hab_spin_lock(&vchan->ctx->impq_lock, irqs_disabled);
 		list_add_tail(&ack_recvd->node, &vchan->ctx->imp_rxq);
 		hab_spin_unlock(&vchan->ctx->impq_lock, irqs_disabled);
 	} else
-		hab_send_export_ack(vchan, pchan, exp_desc);
+		(void)hab_send_export_ack(vchan, pchan, exp_desc);
 
-	return 0;
+	if (ret)
+		kfree(exp_desc_super);
+
+	return ret;
 
 err_imp:
 	if (pchan->mem_proto == 1) {
@@ -557,6 +582,53 @@ err_imp:
 	kfree(exp_desc_super);
 
 	return ret;
+}
+
+static void hab_recv_imp_req(struct physical_channel *pchan,
+					struct virtual_channel *vchan)
+{
+	struct export_desc *exp;
+	struct export_desc_super *exp_desc_super = NULL;
+	int found;
+	struct hab_import_data imp_data = {0};
+	int irqs_disabled = irqs_disabled();
+
+	if (physical_channel_read(pchan, &imp_data, sizeof(struct hab_import_data)) !=
+		sizeof(struct hab_import_data)) {
+		pr_err("corrupted import request, id %ld page %ld vcid %X\n",
+				imp_data.exp_id, imp_data.page_cnt, vchan->id);
+		return;
+	}
+
+	/* expid lock is hold to ensure the availability of exp node */
+	hab_spin_lock(&pchan->expid_lock, irqs_disabled);
+	exp = idr_find(&pchan->expid_idr, imp_data.exp_id);
+	if ((exp != NULL)
+	    && (imp_data.page_cnt == exp->payload_count)
+	    && (vchan->id == exp->vcid_local)) {
+		found = 1;
+		exp_desc_super = container_of(exp, struct export_desc_super, exp);
+	} else {
+		found = 0;
+		if (exp != NULL)
+			pr_err("expected vcid %x pcnt %d, actual %x %u\n",
+				exp->vcid_local, exp->payload_count,
+				vchan->id, imp_data.page_cnt);
+	}
+
+	if (found == 1 && (exp_desc_super->exp_state == HAB_EXP_SUCCESS)) {
+		exp_desc_super->remote_imported = 1;
+		/* might sleep in Vhost & VirtIO HAB, need non-blocking send or RT Linux */
+		hab_send_import_ack(vchan, exp);
+		pr_debug("remote imported exp id %d on vcid %x\n",
+			exp->export_id, vchan->id);
+	} else {
+		pr_err("requested exp id %u not found %d on %x\n",
+			imp_data.exp_id, found, vchan->id);
+		/* might sleep in Vhost & VirtIO HAB, need non-blocking send or RT Linux */
+		hab_send_import_ack_fail(vchan, imp_data.exp_id);
+	}
+	hab_spin_unlock(&pchan->expid_lock, irqs_disabled);
 }
 
 static void hab_msg_drop(struct physical_channel *pchan, size_t sizebytes)
@@ -705,13 +777,8 @@ int hab_msg_recv(struct physical_channel *pchan,
 	uint32_t vchan_id = HAB_HEADER_GET_ID(*header);
 	uint32_t session_id = HAB_HEADER_GET_SESSION_ID(*header);
 	struct virtual_channel *vchan = NULL;
-	struct export_desc *exp;
-	struct export_desc_super *exp_desc_super = NULL;
 	struct timespec64 ts = {0};
 	unsigned long long rx_mpm_tv;
-	int found = 0;
-	struct hab_import_data imp_data = {0};
-	int irqs_disabled = irqs_disabled();
 
 	ret = hab_try_get_vchan(pchan, header, &vchan);
 	if (ret != 0 || ((vchan == NULL) && (payload_type == HAB_PAYLOAD_TYPE_UNIMPORT)))
@@ -737,7 +804,7 @@ int hab_msg_recv(struct physical_channel *pchan,
 				pchan->name, ret, payload_type, sizebytes);
 			break;
 		}
-		wake_up_interruptible(&dev->openq);
+		wake_up(&dev->openq);
 		break;
 
 	case HAB_PAYLOAD_TYPE_INIT_CANCEL:
@@ -820,35 +887,7 @@ int hab_msg_recv(struct physical_channel *pchan,
 		break;
 
 	case HAB_PAYLOAD_TYPE_IMPORT:
-		if (physical_channel_read(pchan, &imp_data, sizeof(struct hab_import_data)) !=
-			sizeof(struct hab_import_data)) {
-			pr_err("corrupted import request, id %ld page %ld vcid %X on %s\n",
-					imp_data.exp_id, imp_data.page_cnt, vchan->id, pchan->name);
-			break;
-		}
-
-		/* expid lock is hold to ensure the availability of exp node */
-		hab_spin_lock(&pchan->expid_lock, irqs_disabled);
-		exp = idr_find(&pchan->expid_idr, imp_data.exp_id);
-		if ((exp != NULL) && (imp_data.page_cnt == exp->payload_count)) {
-			found = 1;
-			exp_desc_super = container_of(exp, struct export_desc_super, exp);
-		} else
-			found = 0;
-
-		if (found == 1 && (exp_desc_super->exp_state == HAB_EXP_SUCCESS)) {
-			exp_desc_super->remote_imported = 1;
-			/* might sleep in Vhost & VirtIO HAB, need non-blocking send or RT Linux */
-			hab_send_import_ack(vchan, exp);
-			pr_debug("remote imported exp id %d on vcid %x\n",
-				exp->export_id, vchan->id);
-		} else {
-			pr_err("requested exp id %ld not found %d on %s\n",
-				imp_data.exp_id, found, pchan->name);
-			/* might sleep in Vhost & VirtIO HAB, need non-blocking send or RT Linux */
-			hab_send_import_ack_fail(vchan, imp_data.exp_id);
-		}
-		hab_spin_unlock(&pchan->expid_lock, irqs_disabled);
+		hab_recv_imp_req(pchan, vchan);
 		break;
 
 	case HAB_PAYLOAD_TYPE_IMPORT_ACK:

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include "hab.h"
 
@@ -80,7 +80,7 @@ struct uhab_context *hab_ctx_alloc(int kernel)
 	ctx->closing = 0;
 	INIT_LIST_HEAD(&ctx->vchannels);
 	INIT_LIST_HEAD(&ctx->exp_whse);
-	INIT_LIST_HEAD(&ctx->imp_whse);
+	hab_rb_init(&ctx->imp_whse);
 
 	INIT_LIST_HEAD(&ctx->exp_rxq);
 	init_waitqueue_head(&ctx->exp_wq);
@@ -143,8 +143,8 @@ void hab_ctx_free_fn(struct uhab_context *ctx)
 		list_del(&exp->node);
 		exp_super = container_of(exp, struct export_desc_super, exp);
 		if ((exp_super->remote_imported != 0) && (exp->pchan->mem_proto == 1)) {
-			pr_warn("exp id %d still imported on remote side on pchan %s\n",
-				exp->export_id, exp->pchan->name);
+			pr_warn("exp id %d still imported on remote side on %s, pcnt %d\n",
+				exp->export_id, exp->pchan->name, exp->payload_count);
 			hab_spin_lock(&hab_driver.reclaim_lock, irqs_disabled);
 			list_add_tail(&exp->node, &hab_driver.reclaim_list);
 			hab_spin_unlock(&hab_driver.reclaim_lock, irqs_disabled);
@@ -167,8 +167,11 @@ void hab_ctx_free_fn(struct uhab_context *ctx)
 	write_unlock(&ctx->exp_lock);
 
 	spin_lock_bh(&ctx->imp_lock);
-	list_for_each_entry_safe(exp, exp_tmp, &ctx->imp_whse, node) {
-		list_del(&exp->node);
+	for (exp_super = hab_rb_min(&ctx->imp_whse, struct export_desc_super, node);
+	     exp_super != NULL;
+	     exp_super = hab_rb_min(&ctx->imp_whse, struct export_desc_super, node)) {
+		exp = &exp_super->exp;
+		hab_rb_remove(&ctx->imp_whse, exp_super);
 		ctx->import_total--;
 		pr_debug("leaked imp %d vcid %X for ctx is collected total %d\n",
 			exp->export_id, exp->vcid_local,
@@ -188,8 +191,8 @@ void hab_ctx_free_fn(struct uhab_context *ctx)
 					pr_err("failed to send unimp msg %d, vcid %d, exp id %d\n",
 						ret, exp->vcid_local, exp->export_id);
 			} else
-				pr_err("exp id %d unmap fail on vcid %X\n",
-					exp->export_id, exp->vcid_local);
+				pr_err("exp id %d pcnt %d unmap fail on vcid %X\n",
+					exp->export_id, exp->payload_count, exp->vcid_local);
 		}
 		exp_super = container_of(exp, struct export_desc_super, exp);
 		kfree(exp_super);
@@ -334,7 +337,8 @@ struct hab_device *find_hab_device(unsigned int mm_id)
  */
 struct virtual_channel *frontend_open(struct uhab_context *ctx,
 		unsigned int mm_id,
-		int dom_id)
+		int dom_id,
+		uint32_t flags, int timeout)
 {
 	int ret, ret2, open_id = 0;
 	struct physical_channel *pchan = NULL;
@@ -387,8 +391,7 @@ struct virtual_channel *frontend_open(struct uhab_context *ctx,
 	/* Wait for Init-Ack sequence */
 	hab_open_request_init(&request, HAB_PAYLOAD_TYPE_INIT_ACK, pchan,
 		0, sub_id, open_id);
-	/* wait forever */
-	ret = hab_open_listen(ctx, dev, &request, &recv_request, 0);
+	ret = hab_open_listen(ctx, dev, &request, &recv_request, timeout, flags);
 	if (!ret && recv_request && ((recv_request->xdata.ver_fe & 0xFFFF0000)
 		!= (recv_request->xdata.ver_be & 0xFFFF0000))) {
 		/* version check */
@@ -413,8 +416,11 @@ struct virtual_channel *frontend_open(struct uhab_context *ctx,
 				   vchan->id);
 		hab_open_pending_exit(ctx, pchan, &pending_open);
 
-		if (ret != -EINTR)
+		if (ret == -EAGAIN)
+			ret = -ETIMEDOUT;
+		else if (ret != -EINTR)
 			ret = -EINVAL;
+
 		goto err;
 	}
 
@@ -454,7 +460,7 @@ err:
 }
 
 struct virtual_channel *backend_listen(struct uhab_context *ctx,
-		unsigned int mm_id, int timeout)
+		unsigned int mm_id, int timeout, uint32_t flags)
 {
 	int ret, ret2;
 	int open_id, ver_fe;
@@ -480,7 +486,7 @@ struct virtual_channel *backend_listen(struct uhab_context *ctx,
 			NULL, 0, sub_id, 0);
 		/* cancel should not happen at this moment */
 		ret = hab_open_listen(ctx, dev, &request, &recv_request,
-				timeout);
+				timeout, flags);
 		if (ret || !recv_request) {
 			if (!ret && !recv_request)
 				ret = -EINVAL;
@@ -549,7 +555,7 @@ struct virtual_channel *backend_listen(struct uhab_context *ctx,
 		hab_open_request_init(&request, HAB_PAYLOAD_TYPE_INIT_DONE,
 				pchan, 0, sub_id, open_id);
 		ret = hab_open_listen(ctx, dev, &request, &recv_request,
-			HAB_HS_TIMEOUT);
+			HAB_HS_TIMEOUT, flags);
 		hab_open_pending_exit(ctx, pchan, &pending_open);
 		if (ret && recv_request &&
 			recv_request->type == HAB_PAYLOAD_TYPE_INIT_CANCEL) {
@@ -784,9 +790,9 @@ int hab_vchan_open(struct uhab_context *ctx,
 
 	if (hab_is_loopback()) {
 		if (ctx->lb_be)
-			vchan = backend_listen(ctx, mmid, timeout);
+			vchan = backend_listen(ctx, mmid, timeout, flags);
 		else
-			vchan = frontend_open(ctx, mmid, LOOPBACK_DOM);
+			vchan = frontend_open(ctx, mmid, LOOPBACK_DOM, flags, timeout);
 	} else {
 		dev = find_hab_device(mmid);
 
@@ -802,10 +808,10 @@ int hab_vchan_open(struct uhab_context *ctx,
 
 				if (pchan->is_be)
 					vchan = backend_listen(ctx, mmid,
-							timeout);
+							timeout, flags);
 				else
 					vchan = frontend_open(ctx, mmid,
-							HABCFG_VMID_DONT_CARE);
+							HABCFG_VMID_DONT_CARE, flags, timeout);
 			} else {
 				pr_err("open on nonexistent pchan (mmid %x)\n",
 					mmid);
@@ -829,9 +835,8 @@ int hab_vchan_open(struct uhab_context *ctx,
 	hab_write_lock(&ctx->ctx_lock, !ctx->kernel);
 	list_add_tail(&vchan->node, &ctx->vchannels);
 	ctx->vcnt++;
-	hab_write_unlock(&ctx->ctx_lock, !ctx->kernel);
-
 	*vcid = vchan->id;
+	hab_write_unlock(&ctx->ctx_lock, !ctx->kernel);
 
 	return 0;
 }
@@ -975,6 +980,8 @@ static int hab_generate_pchan_group(struct local_vmid *settings,
 				HABCFG_GET_BE(settings, i, j),
 				HABCFG_GET_KERNEL(settings, i, j));
 	}
+
+	ret += hab_create_cdev_node(HABCFG_GET_MMID(settings, i, j));
 
 	return ret;
 }

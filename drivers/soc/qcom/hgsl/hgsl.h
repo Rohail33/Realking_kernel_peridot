@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2022, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __HGSL_H_
@@ -15,6 +15,7 @@
 #include "hgsl_hyp.h"
 #include "hgsl_memory.h"
 #include "hgsl_tcsr.h"
+#include "hgsl_gmugos.h"
 
 #define HGSL_TIMELINE_NAME_LEN 64
 
@@ -24,6 +25,38 @@
 /* Support upto 3 GVMs: 3 DBQs(Low/Medium/High priority) per GVM */
 #define MAX_DB_QUEUE 9
 #define HGSL_TCSR_NUM 4
+
+/* Number of the GPU device */
+#define HGSL_DEVICE_NUM  (2)
+#define HGSL_CONTEXT_NUM (256)
+
+#define HGSL_MAX_IOC_SIZE (128)
+#define HGSL_IOCTL_FUNC(_cmd, _func) \
+	[_IOC_NR((_cmd))] = \
+		{ .cmd = (_cmd), .func = (_func) }
+
+enum {
+	HGSL_DB_SIGNAL_NONE = 0,
+	HGSL_DB_SIGNAL_TCSR_0,
+	HGSL_DB_SIGNAL_TCSR_1,
+	HGSL_DB_SIGNAL_TCSR_2,
+	HGSL_DB_SIGNAL_TCSR_3,
+	HGSL_DB_SIGNAL_GMU_GOS_0,
+	HGSL_DB_SIGNAL_GMU_GOS_1,
+	HGSL_DB_SIGNAL_GMU_GOS_2,
+	HGSL_DB_SIGNAL_GMU_GOS_3,
+	HGSL_DB_SIGNAL_GMU_GOS_4,
+	HGSL_DB_SIGNAL_GMU_GOS_5,
+	HGSL_DB_SIGNAL_GMU_GOS_6,
+	HGSL_DB_SIGNAL_GMU_GOS_7,
+	HGSL_DB_SIGNAL_MAX = HGSL_DB_SIGNAL_GMU_GOS_7,
+	HGSL_DB_SIGNAL_NUM
+};
+
+struct hgsl_ioctl {
+	unsigned int cmd;
+	int (*func)(struct file *filep, void *data);
+};
 
 struct qcom_hgsl;
 struct hgsl_hsync_timeline;
@@ -54,14 +87,23 @@ struct db_buffer {
 	void  *vaddr;
 };
 
+struct dbq_ibdesc_priv {
+	bool   buf_inuse;
+	uint32_t context_id;
+	uint32_t timestamp;
+};
+
 struct doorbell_queue {
 	struct dma_buf *dma;
 	struct iosys_map map;
 	void *vbase;
+	uint64_t  gmuaddr;
 	struct db_buffer data;
 	uint32_t state;
 	int tcsr_idx;
 	uint32_t dbq_idx;
+	struct dbq_ibdesc_priv ibdesc_priv;
+	uint32_t  ibdesc_max_size;
 	struct mutex lock;
 	atomic_t seq_num;
 };
@@ -78,7 +120,8 @@ struct doorbell_context_queue {
 	uint32_t queue_body_gmuaddr;
 	uint32_t indirect_ibs_gmuaddr;
 	uint32_t queue_size;
-	int irq_idx;
+	int irq_bit_idx;
+	uint32_t indirect_ib_ts;
 };
 
 struct qcom_hgsl {
@@ -103,8 +146,11 @@ struct qcom_hgsl {
 	/* global doorbell tcsr */
 	struct hgsl_tcsr *tcsr[HGSL_TCSR_NUM][HGSL_TCSR_ROLE_MAX];
 	int tcsr_idx;
-	struct hgsl_context **contexts;
+
+	struct hgsl_context **contexts[HGSL_DEVICE_NUM];
 	rwlock_t ctxt_lock;
+
+	struct hgsl_gmugos gmugos[HGSL_DEVICE_NUM];
 
 	struct list_head active_wait_list;
 	spinlock_t active_wait_lock;
@@ -116,6 +162,7 @@ struct qcom_hgsl {
 	struct hgsl_hyp_priv_t global_hyp;
 	bool global_hyp_inited;
 	struct mutex mutex;
+	struct list_head active_list;
 	struct list_head release_list;
 	struct workqueue_struct *release_wq;
 	struct work_struct release_work;
@@ -123,6 +170,12 @@ struct qcom_hgsl {
 	spinlock_t isync_timeline_lock;
 	atomic64_t total_mem_size;
 	bool default_iocoherency;
+
+	/* Debug nodes */
+	struct kobject sysfs;
+	struct kobject *clients_sysfs;
+	struct dentry *debugfs;
+	struct dentry *clients_debugfs;
 };
 
 /**
@@ -140,8 +193,9 @@ struct hgsl_context {
 	bool dbq_assigned;
 	uint32_t dbq_info;
 	struct doorbell_queue *dbq;
-	struct hgsl_mem_node shadow_ts_node;
+	struct hgsl_mem_node *shadow_ts_node;
 	uint32_t shadow_ts_flags;
+	bool is_fe_shadow;
 	bool in_destroy;
 	bool destroyed;
 	struct kref kref;
@@ -154,6 +208,7 @@ struct hgsl_context {
 	struct mutex lock;
 	struct doorbell_context_queue *dbcq;
 	uint32_t dbcq_export_id;
+	uint32_t db_signal;
 };
 
 struct hgsl_priv {
@@ -162,10 +217,19 @@ struct hgsl_priv {
 	struct list_head node;
 	struct hgsl_hyp_priv_t hyp_priv;
 	struct mutex lock;
-	struct list_head mem_mapped;
-	struct list_head mem_allocated;
+	struct rb_root mem_mapped;
+	struct rb_root mem_allocated;
+	int open_count;
 
 	atomic64_t total_mem_size;
+
+	/* sysfs stuff */
+	struct kobject kobj;
+	struct kobject sysfs_client;
+	struct kobject sysfs_mem_size;
+	struct dentry *debugfs_client;
+	struct dentry *debugfs_mem;
+	struct dentry *debugfs_memtype;
 };
 
 
@@ -189,6 +253,18 @@ static inline bool hgsl_ts_ge(uint64_t a, uint64_t b, bool is64)
 		return hgsl_ts64_ge(a, b);
 	else
 		return hgsl_ts32_ge((uint32_t)a, (uint32_t)b);
+}
+
+static inline bool hgsl_mem_rb_empty(struct hgsl_priv *priv)
+{
+	return (RB_EMPTY_ROOT(&priv->mem_mapped) &&
+		RB_EMPTY_ROOT(&priv->mem_allocated));
+}
+
+static inline u32 hgsl_hnd2id(u32 dev_hnd)
+{
+	return (dev_hnd == GSL_HANDLE_NULL) ? (U32_MAX) :
+		((dev_hnd == GSL_HANDLE_DEV1) ? 1 : 0);
 }
 
 /**
@@ -282,5 +358,7 @@ int hgsl_isync_forward(struct hgsl_priv *priv, uint32_t timeline_id,
 int hgsl_isync_query(struct hgsl_priv *priv, uint32_t timeline_id,
 							uint64_t *ts);
 int hgsl_isync_wait_multiple(struct hgsl_priv *priv, struct hgsl_timeline_wait *param);
+
+void hgsl_retire_common(struct qcom_hgsl *hgsl, u32 dev_hnd);
 
 #endif /* __HGSL_H_ */
