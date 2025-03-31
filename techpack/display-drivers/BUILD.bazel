@@ -1,0 +1,162 @@
+load("//build/kernel/kleaf:kernel.bzl", "ddk_headers")
+
+package(
+    default_visibility = [
+      "//visibility:public"],
+)
+
+ddk_headers(
+    name = "linux_includes",
+    hdrs = glob([
+      "include/linux/*.h",
+    ]),
+    includes = ["include"]
+)
+
+ddk_headers(
+    name = "uapi_headers",
+    hdrs = glob([
+      "include/uapi/display/drm/*.h",
+      "include/uapi/display/hdcp/*.h",
+      "include/uapi/display/media/*.h",
+    ]),
+    includes = ["include/uapi/display"]
+)
+
+ddk_headers(
+    name = "dp_headers",
+    hdrs = glob([
+      "msm/dp/*.h",
+    ]),
+    includes = ["msm/dp"]
+)
+
+ddk_headers(
+    name = "dsi_headers",
+    hdrs = glob([
+      "msm/dsi/*.h",
+    ]),
+    includes = ["msm/dsi"]
+)
+
+ddk_headers(
+    name = "sde_headers",
+    hdrs = glob([
+      "msm/sde/*.h",
+    ]),
+    includes = ["msm/sde"]
+)
+
+ddk_headers(
+    name = "mi_disp",
+    hdrs = glob([
+      "msm/mi_disp/*.h",
+    ]),
+    includes = ["msm/mi_disp"]
+)
+
+ddk_headers(
+    name = "rotator_headers",
+    hdrs = glob([
+      "rotator/*.h",
+    ]),
+    includes = ["rotator"]
+)
+
+ddk_headers(
+    name = "msm_headers",
+    hdrs = glob([
+      "msm/*.h",
+    ]),
+    includes = ["msm"]
+)
+
+ddk_headers(
+    name = "display_drivers_headers",
+    hdrs = [ ":linux_includes", ":uapi_headers", ":msm_headers",":dp_headers",":dsi_headers",":sde_headers",":rotator_headers", ":mi_disp"]
+)
+
+ddk_headers(
+    name = "linux_includes_auto",
+    hdrs = glob([
+      "display_drivers_auto/include/linux/*.h",
+    ]),
+    includes = ["display_drivers_auto/include"]
+)
+
+ddk_headers(
+    name = "uapi_headers_auto",
+    hdrs = glob([
+      "display_drivers_auto/include/uapi/display/drm/*.h",
+      "display_drivers_auto/include/uapi/display/hdcp/*.h",
+      "display_drivers_auto/include/uapi/display/media/*.h",
+    ]),
+    includes = ["display_drivers_auto/include/uapi/display"]
+)
+
+ddk_headers(
+    name = "dp_headers_auto",
+    hdrs = glob([
+      "display_drivers_auto/msm/dp/*.h",
+    ]),
+    includes = ["display_drivers_auto/msm/dp"]
+)
+
+ddk_headers(
+    name = "dsi_headers_auto",
+    hdrs = glob([
+      "display_drivers_auto/msm/dsi/*.h",
+    ]),
+    includes = ["display_drivers_auto/msm/dsi"]
+)
+
+ddk_headers(
+    name = "sde_headers_auto",
+    hdrs = glob([
+      "display_drivers_auto/msm/sde/*.h",
+    ]),
+    includes = ["display_drivers_auto/msm/sde"]
+)
+
+ddk_headers(
+    name = "rotator_headers_auto",
+    hdrs = glob([
+      "display_drivers_auto/rotator/*.h",
+    ]),
+    includes = ["display_drivers_auto/rotator"]
+)
+
+ddk_headers(
+    name = "msm_headers_auto",
+    hdrs = glob([
+      "display_drivers_auto/msm/*.h",
+    ]),
+    includes = ["display_drivers_auto/msm"]
+)
+
+ddk_headers(
+    name = "mi_disp_auto",
+    hdrs = glob([
+      "display_drivers_auto/msm/mi_disp/mi_dp_mst_topology/*.h",
+      "display_drivers_auto/msm/mi_disp/mi_common/*.h",
+      "display_drivers_auto/msm/mi_disp/mi_ext_panel/*.h",
+      "display_drivers_auto/msm/mi_disp/maxim967xx/*.h",
+    ]),
+    includes = ["display_drivers_auto/msm/mi_disp/mi_dp_mst_topology",
+                "display_drivers_auto/msm/mi_disp/mi_common",
+                "display_drivers_auto/msm/mi_disp/mi_ext_panel",
+                "display_drivers_auto/msm/mi_disp/maxim967xx"]
+)
+
+ddk_headers(
+    name = "display_drivers_headers_auto",
+    hdrs = [ ":linux_includes_auto", ":uapi_headers_auto", ":msm_headers_auto",":dp_headers_auto",":dsi_headers_auto",":sde_headers_auto",":rotator_headers_auto", ":mi_disp_auto"]
+)
+
+config_setting(
+    name = "factory_build",
+    define_values = { "FACTORY_BUILD": "1" }
+)
+
+load(":target.bzl", "define_display_target")
+define_display_target()
