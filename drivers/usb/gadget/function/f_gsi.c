@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022,2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -1504,10 +1504,8 @@ static long gsi_ctrl_dev_ioctl(struct file *fp, unsigned int cmd,
 	gsi = inst_cur->opts->gsi;
 	c_port = &gsi->c_port;
 
-	if (!atomic_read(&gsi->connected) && cmd != QTI_CTRL_GET_LINE_STATE
-			&& cmd != GSI_MBIM_GPS_USB_STATUS) {
-		log_event_err("%s:cmd %u failed, USB not connected\n",
-					__func__, cmd);
+	if (!atomic_read(&gsi->connected)) {
+		log_event_err("USB cable not connected\n");
 		return -ECONNRESET;
 	}
 
@@ -1555,6 +1553,12 @@ static long gsi_ctrl_dev_ioctl(struct file *fp, unsigned int cmd,
 	case GSI_MBIM_EP_LOOKUP:
 		log_event_dbg("%s: EP_LOOKUP for prot id:%d", __func__,
 							gsi->prot_id);
+		if (!atomic_read(&gsi->connected)) {
+			log_event_dbg("EP_LOOKUP failed: not connected");
+			ret = -EAGAIN;
+			break;
+		}
+
 		if (gsi->prot_id == IPA_USB_DIAG &&
 				(gsi->d_port.in_channel_handle == -EINVAL)) {
 			ret = -EAGAIN;
@@ -2652,11 +2656,13 @@ static int gsi_func_suspend(struct usb_function *f, u8 options)
 	return 0;
 }
 
-
-static int gsi_assign_string_ids(struct f_gsi *gsi,
+static int gsi_update_function_bind_params(struct f_gsi *gsi,
 	struct usb_composite_dev *cdev,
 	struct gsi_function_bind_info *info)
 {
+	struct usb_ep *ep;
+	struct usb_cdc_notification *event;
+	struct usb_function *f = &gsi->function;
 	int status;
 
 	if (info->ctrl_str_idx >= 0 && info->ctrl_desc) {
@@ -2712,23 +2718,6 @@ static int gsi_assign_string_ids(struct f_gsi *gsi,
 	if (info->data_nop_desc)
 		info->data_nop_desc->bInterfaceNumber = gsi->data_id;
 
-	return 0;
-}
-
-
-static int gsi_update_function_bind_params(struct f_gsi *gsi,
-	struct usb_composite_dev *cdev,
-	struct gsi_function_bind_info *info)
-{
-	struct usb_ep *ep;
-	struct usb_cdc_notification *event;
-	struct usb_function *f = &gsi->function;
-	int status;
-
-	status = gsi_assign_string_ids(gsi, cdev, info);
-	if (status < 0)
-		return status;
-
 	/* allocate instance-specific endpoints */
 	if (info->fs_in_desc) {
 		ep = usb_ep_autoconfig(cdev->gadget, info->fs_in_desc);
@@ -2763,7 +2752,7 @@ static int gsi_update_function_bind_params(struct f_gsi *gsi,
 		gsi->c_port.notify_req->buf =
 			kmalloc(info->notify_buf_len, GFP_KERNEL);
 		if (!gsi->c_port.notify_req->buf)
-			goto free_req;
+			goto fail;
 
 		gsi->c_port.notify_req->length = info->notify_buf_len;
 		gsi->c_port.notify_req->context = gsi;
@@ -2816,17 +2805,15 @@ static int gsi_update_function_bind_params(struct f_gsi *gsi,
 	status = usb_assign_descriptors(f, info->fs_desc_hdr, info->hs_desc_hdr,
 					info->ss_desc_hdr, info->ss_desc_hdr);
 	if (status)
-		goto free_req_buf;
+		goto fail;
 
 	return 0;
 
-free_req_buf:
-	if (gsi->c_port.notify_req && gsi->c_port.notify_req->buf)
-		kfree(gsi->c_port.notify_req->buf);
-free_req:
-	if (gsi->c_port.notify_req)
-		usb_ep_free_request(gsi->c_port.notify, gsi->c_port.notify_req);
 fail:
+	if (gsi->c_port.notify_req) {
+		kfree(gsi->c_port.notify_req->buf);
+		usb_ep_free_request(gsi->c_port.notify, gsi->c_port.notify_req);
+	}
 	/* we might as well release our claims on endpoints */
 	if (gsi->c_port.notify)
 		gsi->c_port.notify->driver_data = NULL;
@@ -3544,9 +3531,6 @@ static struct config_item_type gsi_func_rndis_type = {
 
 static void gsi_inst_clean(struct gsi_opts *opts)
 {
-	if (!opts)
-		return;
-
 	if (opts->gsi->c_port.cdev.dev) {
 		struct cdev *cdev = &opts->gsi->c_port.cdev;
 		int minor = MINOR(cdev->dev);
@@ -3629,7 +3613,7 @@ static void gsi_free_inst(struct usb_function_instance *f)
 	enum ipa_usb_teth_prot prot_id;
 	struct f_gsi *gsi;
 
-	if (!opts || !opts->gsi)
+	if (!opts->gsi)
 		return;
 
 	prot_id = opts->gsi->prot_id;

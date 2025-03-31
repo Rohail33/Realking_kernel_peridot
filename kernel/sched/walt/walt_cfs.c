@@ -332,8 +332,9 @@ static void walt_find_best_target(struct sched_domain *sd,
 	bool rtg_high_prio_task = task_rtg_high_prio(p);
 	cpumask_t visit_cpus;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
-	int packing_cpu;
+	int packing_cpu,cpu;
 	bool visited_clusters[MAX_CLUSTERS] = {[0 ... (MAX_CLUSTERS-1)] = false};
+	unsigned int search_sibling_cluster = 0;
 
 	/* Find start CPU based on boost value */
 	start_cpu = fbt_env->start_cpu;
@@ -382,6 +383,17 @@ retry:
 		best_idle_cuml_util = ULONG_MAX;
 		cpumask_and(&visit_cpus, p->cpus_ptr,
 				&cpu_array[order_index][cluster]);
+
+		if (search_sibling_cluster) {
+			if (!(search_sibling_cluster & BIT(cluster)))
+				continue;
+			cluster_id = cluster;
+			cpumask_and(&visit_cpus, p->cpus_ptr, &sched_cluster[cluster]->cpus);
+		} else {
+			cpumask_and(&visit_cpus, p->cpus_ptr, &cpu_array[order_index][cluster]);
+			cluster_id = cpu_cluster(
+					cpumask_first(&cpu_array[order_index][cluster]))->id;
+		}
 
 		if (visited_clusters[cluster_id])
 			continue;

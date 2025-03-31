@@ -169,9 +169,12 @@ struct geni_i2c_ssr {
 
 struct geni_i2c_dev {
 	struct device *dev;
+	bool is_deep_sleep;
+	struct geni_se_rsc  rsc;
 	void __iomem *base;
 	unsigned int tx_wm;
 	int irq;
+	struct geni_i2c_ssr i2c_ssr;
 	int err;
 	u32 xfer_timeout;
 	struct i2c_adapter adap;

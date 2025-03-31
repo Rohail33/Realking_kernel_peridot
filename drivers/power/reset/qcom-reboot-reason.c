@@ -15,14 +15,12 @@
 #include <linux/pm.h>
 #include <linux/of_address.h>
 #include <linux/nvmem-consumer.h>
-#include <linux/panic_notifier.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 
 struct qcom_reboot_reason {
 	struct device *dev;
 	struct notifier_block reboot_nb;
-	struct notifier_block panic_nb;
 	struct nvmem_cell *nvmem_cell;
 	struct poweroff_reason *reasons;
 };
@@ -34,61 +32,31 @@ struct poweroff_reason {
 };
 
 static struct poweroff_reason pon_reasons[] = {
-	{ "recovery",			0x01 },
-	{ "bootloader",			0x02 },
-	{ "rtc",			0x03 },
-	{ "dm-verity device corrupted",	0x04 },
-	{ "dm-verity enforcing",	0x05 },
-	{ "keys clear",			0x06 },
-	{ "ffu",			0x41 },
-	{ "panic",			0x21 },
-	{ "cma alloc fail",		0x23 },
-	{ "bios",			0x30 },
-	{ NULL,				0x20 },
+	{ "recovery",			0x01, 0x1 },
+	{ "bootloader",			0x02, 0x1 },
+	{ "rtc",			0x03, 0x1 },
+	{ "dm-verity device corrupted",	0x04, 0x1 },
+	{ "dm-verity enforcing",	0x05, 0x1 },
+	{ "keys clear",			0x06, 0x1 },
 	{}
 };
 
-#define RESTART_REASON_PANIC  7
-#define RESTART_REASON_CMA_FAIL 8
-#define RESTART_REASON_NORMAL 10
-#define RESTART_REASON_EIO 3
+static  struct poweroff_reason imem_pon_reasons[] = {
+	{ "recovery",                   0x77665502, 0x4 },
+	{ "bootloader",                 0x77665500, 0x4 },
+	{ "rtc",                        0x77665503, 0x4 },
+	{ "dm-verity device corrupted", 0x77665508, 0x4 },
+	{ "dm-verity enforcing",        0x77665509, 0x4 },
+	{ "keys clear",                 0x7766550a, 0x4 },
+	{}
+};
 
-static struct qcom_reboot_reason *ffu_reboot = NULL;
-
-int ufs_ffu_reboot_reason_reboot(void *ptr)
-{
-	char *cmd = ptr;
-	struct qcom_reboot_reason *reboot;
-	struct poweroff_reason *reason;
-
-	if(!ffu_reboot)
-		return NOTIFY_BAD;
-
-	reboot = ffu_reboot;
-
-	if (!cmd) {
-		nvmem_cell_write(reboot->nvmem_cell,
-				 &reasons[RESTART_REASON_NORMAL].pon_reason,
-				 sizeof(reasons[RESTART_REASON_NORMAL].pon_reason));
-		return NOTIFY_OK;
-	}
-
-	for (reason = reasons; reason->cmd; reason++) {
-		if (!strcmp(cmd, reason->cmd)) {
-			nvmem_cell_write(reboot->nvmem_cell,
-					 &reason->pon_reason,
-					 sizeof(reason->pon_reason));
-			return NOTIFY_OK;
-		}
-	}
-
-	nvmem_cell_write(reboot->nvmem_cell,
-			&reason->pon_reason,
-			sizeof(reason->pon_reason));
-
-	return NOTIFY_OK;
-}
-EXPORT_SYMBOL(ufs_ffu_reboot_reason_reboot);
+static const struct of_device_id of_qcom_reboot_reason_match[] = {
+	{ .compatible = "qcom,reboot-reason", .data = pon_reasons },
+	{ .compatible = "qcom,imem-reboot-reason", .data = imem_pon_reasons },
+	{},
+};
+MODULE_DEVICE_TABLE(of, of_qcom_reboot_reason_match);
 
 static int qcom_reboot_reason_reboot(struct notifier_block *this,
 				     unsigned long event, void *ptr)
@@ -99,59 +67,20 @@ static int qcom_reboot_reason_reboot(struct notifier_block *this,
 		struct qcom_reboot_reason, reboot_nb);
 	struct poweroff_reason *reason;
 
-	if (!cmd) {
-		nvmem_cell_write(reboot->nvmem_cell,
-				 &reasons[RESTART_REASON_NORMAL].pon_reason,
-				 sizeof(reasons[RESTART_REASON_NORMAL].pon_reason));
+	if (!cmd)
 		return NOTIFY_OK;
-	}
 	for (reason = reboot->reasons; reason->cmd; reason++) {
 		if (!strcmp(cmd, reason->cmd)) {
-			/* BSP-Kernel@Xiaomi add for EIO mode */
-			if(!strcmp("dm-verity device corrupted",cmd)) {
-				pr_err("!!! trigger dm-verity panic !!!");
-				panic(cmd);
-			}
-			else {
-				nvmem_cell_write(reboot->nvmem_cell,
-				&reason->pon_reason,
-				reason->size);
-			}
-			return NOTIFY_OK;
+			rc = nvmem_cell_write(reboot->nvmem_cell,
+					 &reason->pon_reason,
+					 reason->size);
+			if (rc < 0)
+				pr_err("PON reason store failed, rc=%d\n", rc);
+			break;
 		}
 	}
-	nvmem_cell_write(reboot->nvmem_cell,
-			&reason->pon_reason,
-			sizeof(reason->pon_reason));
 
 	return NOTIFY_OK;
-}
-
-static int panic_prep_restart(struct notifier_block *this,
-			      unsigned long event, void *ptr)
-{
-	struct qcom_reboot_reason *reboot = container_of(this,
-		struct qcom_reboot_reason, panic_nb);
-	char *cmd = ptr;
-	/* BSP-Kernel@Xiaomi add for EIO mode */
-	if(!strcmp("dm-verity device corrupted",cmd)) {
-		nvmem_cell_write(reboot->nvmem_cell,
-				&reasons[RESTART_REASON_EIO].pon_reason,
-				sizeof(reasons[RESTART_REASON_EIO].pon_reason));
-	}
-	/* BSP-Kernel@Xiaomi add for msm_sharedmem panic*/
-	else if(!strcmp("panic for failing to allocate cma memory",cmd)) {
-		pr_err("!!! cma alloc panic !!!");
-		nvmem_cell_write(reboot->nvmem_cell,
-				&reasons[RESTART_REASON_CMA_FAIL].pon_reason,
-				sizeof(reasons[RESTART_REASON_CMA_FAIL].pon_reason));
-	}
-	else {
-		nvmem_cell_write(reboot->nvmem_cell,
-				&reasons[RESTART_REASON_PANIC].pon_reason,
-				sizeof(reasons[RESTART_REASON_PANIC].pon_reason));
-	}
-	return NOTIFY_DONE;
 }
 
 static int qcom_reboot_reason_probe(struct platform_device *pdev)
@@ -187,12 +116,6 @@ static int qcom_reboot_reason_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, reboot);
 
-	reboot->panic_nb.notifier_call = panic_prep_restart;
-	reboot->panic_nb.priority = INT_MAX;
-	atomic_notifier_chain_register(&panic_notifier_list, &reboot->panic_nb);
-
-	ffu_reboot = reboot;
-
 	return 0;
 }
 
@@ -200,7 +123,6 @@ static int qcom_reboot_reason_remove(struct platform_device *pdev)
 {
 	struct qcom_reboot_reason *reboot = platform_get_drvdata(pdev);
 
-	atomic_notifier_chain_unregister(&panic_notifier_list, &reboot->panic_nb);
 	unregister_reboot_notifier(&reboot->reboot_nb);
 
 	return 0;

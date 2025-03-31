@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -87,7 +87,6 @@
 #define USB_HSPHY_1P8_VOL_MAX			1800000 /* uV */
 #define USB_HSPHY_1P8_HPM_LOAD			19000	/* uA */
 
-#define USB2PHY_REFGEN_HPM_LOAD			1200000  /* uA */
 #define USB_HSPHY_VDD_HPM_LOAD			30000	/* uA */
 
 
@@ -113,9 +112,7 @@ struct msm_hsphy {
 	struct regulator	*vdd;
 	struct regulator	*vdda33;
 	struct regulator	*vdda18;
-	struct regulator        *refgen;
 	int			vdd_levels[3]; /* none, low, high */
-	int			refgen_levels[3]; /* 0, REFGEN_VOL_MIN, REFGEN_VOL_MAX */
 
 	bool			clocks_enabled;
 	bool			power_enabled;
@@ -296,12 +293,8 @@ static int vdda33_phy_enable_disable(struct msm_hsphy *phy, bool on)
 {
 	int ret = 0;
 
-	if (!on) {
-		if (phy->refgen)
-			goto disable_refgen;
-		else
-			goto disable_vdda33;
-	}
+	if (!on)
+		goto disable_vdda33;
 
 	if (phy->phy_priv_data == NULL || !phy->phy_priv_data->limit_control_vdda33) {
 		ret = regulator_set_load(phy->vdda33, USB_HSPHY_3P3_HPM_LOAD);
@@ -325,47 +318,9 @@ static int vdda33_phy_enable_disable(struct msm_hsphy *phy, bool on)
 		goto unset_vdd33;
 	}
 
-	if (phy->refgen) {
-		ret = regulator_set_load(phy->refgen, USB2PHY_REFGEN_HPM_LOAD);
-		if (ret < 0) {
-			dev_err(phy->phy.dev, "Unable to set HPM of refgen:%d\n", ret);
-			goto disable_vdda33;
-		}
-
-		ret = regulator_set_voltage(phy->refgen, phy->refgen_levels[1],
-						phy->refgen_levels[2]);
-		if (ret) {
-			dev_err(phy->phy.dev,
-					"Unable to set voltage for refgen:%d\n", ret);
-			goto put_refgen_lpm;
-		}
-
-		ret = regulator_enable(phy->refgen);
-		if (ret) {
-			dev_err(phy->phy.dev, "Unable to enable refgen:%d\n", ret);
-			goto unset_refgen;
-		}
-	}
-
 	dev_dbg(phy->phy.dev, "%s(): HSUSB PHY's vdda33 turned ON.\n", __func__);
 
 	return ret;
-
-disable_refgen:
-	ret = regulator_disable(phy->refgen);
-	if (ret)
-		dev_err(phy->phy.dev, "Unable to disable refgen:%d\n", ret);
-
-unset_refgen:
-	ret = regulator_set_voltage(phy->refgen, phy->refgen_levels[0], phy->refgen_levels[2]);
-	if (ret)
-		dev_err(phy->phy.dev,
-				"Unable to set (0) voltage for refgen:%d\n", ret);
-
-put_refgen_lpm:
-	ret = regulator_set_load(phy->refgen, 0);
-	if (ret < 0)
-		dev_err(phy->phy.dev, "Unable to set (0) HPM of refgen\n");
 
 disable_vdda33:
 	ret = regulator_disable(phy->vdda33);
@@ -495,9 +450,8 @@ static int msm_hsphy_init(struct usb_phy *uphy)
 				qcom_scm_io_writel(phy->eud_reg, 0x0);
 				phy->re_enable_eud = true;
 			} else {
-				msm_hsphy_enable_power(phy, true);
-				msm_hsphy_enable_clocks(phy, true);
-				return 0;
+				ret = msm_hsphy_enable_power(phy, true);
+				return ret;
 			}
 		}
 	}
@@ -688,7 +642,6 @@ suspend:
 		}
 		phy->suspended = true;
 	} else { /* Bus resume and cable connect */
-		msm_hsphy_enable_power(phy, true);
 		msm_hsphy_enable_clocks(phy, true);
 		phy->suspended = false;
 	}
@@ -877,46 +830,6 @@ static void msm_hsphy_create_debugfs(struct msm_hsphy *phy)
 	debugfs_create_x8("param_ovrd3", 0644, phy->root, &phy->param_ovrd3);
 }
 
-static int usb2_get_regulators(struct msm_hsphy *phy)
-{
-	struct device *dev = phy->phy.dev;
-	int ret = 0;
-
-	phy->refgen = NULL;
-
-	phy->vdd = devm_regulator_get(dev, "vdd");
-	if (IS_ERR(phy->vdd)) {
-		ret = PTR_ERR(phy->vdd);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "unable to get vdd supply\n");
-		return ret;
-	}
-
-	phy->vdda33 = devm_regulator_get(dev, "vdda33");
-	if (IS_ERR(phy->vdda33)) {
-		ret = PTR_ERR(phy->vdda33);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "unable to get vdda33 supply\n");
-		return ret;
-	}
-
-	phy->vdda18 = devm_regulator_get(dev, "vdda18");
-	if (IS_ERR(phy->vdda18)) {
-		ret = PTR_ERR(phy->vdda18);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "unable to get vdda18 supply\n");
-		return ret;
-	}
-
-	if (of_property_read_bool(dev->of_node, "refgen-supply")) {
-		phy->refgen = devm_regulator_get_optional(dev, "refgen");
-		if (IS_ERR(phy->refgen))
-			dev_err(dev, "unable to get refgen supply\n");
-	}
-
-	return 0;
-}
-
 static int msm_hsphy_probe(struct platform_device *pdev)
 {
 	struct msm_hsphy *phy;
@@ -1045,15 +958,26 @@ static int msm_hsphy_probe(struct platform_device *pdev)
 		goto err_ret;
 	}
 
-	ret = of_property_read_u32_array(dev->of_node, "qcom,refgen-voltage-level",
-					(u32 *) phy->refgen_levels,
-					ARRAY_SIZE(phy->refgen_levels));
-	if (ret)
-		dev_err(dev, "error reading qcom,refgen-voltage-level property\n");
+	phy->vdd = devm_regulator_get(dev, "vdd");
+	if (IS_ERR(phy->vdd)) {
+		dev_err(dev, "unable to get vdd supply\n");
+		ret = PTR_ERR(phy->vdd);
+		goto err_ret;
+	}
 
-	ret = usb2_get_regulators(phy);
-	if (ret)
-		return ret;
+	phy->vdda33 = devm_regulator_get(dev, "vdda33");
+	if (IS_ERR(phy->vdda33)) {
+		dev_err(dev, "unable to get vdda33 supply\n");
+		ret = PTR_ERR(phy->vdda33);
+		goto err_ret;
+	}
+
+	phy->vdda18 = devm_regulator_get(dev, "vdda18");
+	if (IS_ERR(phy->vdda18)) {
+		dev_err(dev, "unable to get vdda18 supply\n");
+		ret = PTR_ERR(phy->vdda18);
+		goto err_ret;
+	}
 
 	mutex_init(&phy->phy_lock);
 	platform_set_drvdata(pdev, phy);
@@ -1065,9 +989,15 @@ static int msm_hsphy_probe(struct platform_device *pdev)
 	phy->phy.set_power		= msm_hsphy_set_power;
 	phy->phy.type			= USB_PHY_TYPE_USB2;
 
-	ret = msm_hsphy_regulator_init(phy);
+	ret = usb_add_phy_dev(&phy->phy);
 	if (ret)
-		goto err_ret;
+		return ret;
+
+	ret = msm_hsphy_regulator_init(phy);
+	if (ret) {
+		usb_remove_phy(&phy->phy);
+		return ret;
+	}
 
 	INIT_WORK(&phy->vbus_draw_work, msm_hsphy_vbus_draw_work);
 	msm_hsphy_create_debugfs(phy);
@@ -1077,13 +1007,9 @@ static int msm_hsphy_probe(struct platform_device *pdev)
 	 * kernel boot till USB phy driver is initialized based on cable status,
 	 * keep LDOs on here.
 	 */
-	if (phy->eud_enable_reg && readl_relaxed(phy->eud_enable_reg)) {
+	if (phy->eud_enable_reg && readl_relaxed(phy->eud_enable_reg))
 		msm_hsphy_enable_power(phy, true);
-		msm_hsphy_enable_clocks(phy, true);
-	}
-
-	/* Placed at the end to ensure the probe is complete */
-	ret = usb_add_phy_dev(&phy->phy);
+	return 0;
 
 err_ret:
 	return ret;

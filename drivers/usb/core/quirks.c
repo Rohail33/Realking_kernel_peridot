@@ -138,9 +138,6 @@ static int quirks_param_set(const char *value, const struct kernel_param *kp)
 			case 'o':
 				flags |= USB_QUIRK_HUB_SLOW_RESET;
 				break;
-			case 'p':
-				flags |= USB_QUIRK_SHORT_SET_ADDRESS_REQ_TIMEOUT;
-				break;
 			/* Ignore unrecognized flag characters */
 			}
 		}
@@ -509,9 +506,6 @@ static const struct usb_device_id usb_quirk_list[] = {
 	{ USB_DEVICE(0x1b1c, 0x1b38), .driver_info = USB_QUIRK_DELAY_INIT |
 	  USB_QUIRK_DELAY_CTRL_MSG },
 
-	/* START BP-850k Printer */
-	{ USB_DEVICE(0x1bc3, 0x0003), .driver_info = USB_QUIRK_NO_SET_INTF },
-
 	/* MIDI keyboard WORLDE MINI */
 	{ USB_DEVICE(0x1c75, 0x0204), .driver_info =
 			USB_QUIRK_CONFIG_INTF_STRINGS },
@@ -538,10 +532,6 @@ static const struct usb_device_id usb_quirk_list[] = {
 	{ USB_DEVICE(0x2386, 0x3119), .driver_info = USB_QUIRK_NO_LPM },
 
 	{ USB_DEVICE(0x2386, 0x350e), .driver_info = USB_QUIRK_NO_LPM },
-
-	/* APTIV AUTOMOTIVE HUB */
-	{ USB_DEVICE(0x2c48, 0x0132), .driver_info =
-			USB_QUIRK_SHORT_SET_ADDRESS_REQ_TIMEOUT },
 
 	/* DJI CineSSD */
 	{ USB_DEVICE(0x2ca3, 0x0031), .driver_info = USB_QUIRK_NO_LPM },
