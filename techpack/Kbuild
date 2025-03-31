@@ -1,5 +1,19 @@
 # SPDX-License-Identifier: GPL-2.0-only
 TECHPACK?=y
 
+export KERNEL_ROOT=$(srctree)
+export KERNEL_SRC=$(srctree)
+export MMRM_ROOT=$(srctree)/techpack/mmrm-driver
+export KERNEL_ROOT=$(srctree)
+export MM_ROOT=$(srctree)/techpack/mm-drivers
+export SSG_MODULE_ROOT=$(srctree)/techpack/securemsm-kernel
+export SYNX_ROOT=$(srctree)/techpack/synx-kernel
+export KGSL_PATH=$(srctree)/techpack/graphics-kernel
+export DISPLAY_ROOT=$(srctree)/techpack/display-drivers
+export AUDIO_ROOT=$(srctree)/techpack/audio-kernel
+export TOUCH_ROOT=$(srctree)/techpack/touch-drivers
+export CAMERA_KERNEL_ROOT=$(srctree)/techpack/camera-kernel
+export WLAN_PLATFORM_ROOT=$(srctree)/techpack/wlan
+
 techpack-dirs := $(shell find $(srctree)/techpack -maxdepth 1 -mindepth 1 -type d -not -name ".*")
 obj-${TECHPACK} += stub/ $(addsuffix /,$(subst $(srctree)/techpack/,,$(techpack-dirs)))
