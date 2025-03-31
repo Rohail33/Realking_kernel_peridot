@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+LINUXINCLUDE    += -I$(MM_ROOT)/sync_fence/include/
+include $(MM_ROOT)/config/kalamammdrivers.conf
+LINUXINCLUDE += -include $(MM_ROOT)/config/kalamammdriversconf.h
+
+ifdef CONFIG_QCOM_SPEC_SYNC
+obj-m += sync_fence.o
+
+sync_fence-y := src/qcom_sync_file.o
+
+CDEFINES += -DBUILD_TIMESTAMP=\"$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')\"
+endif
+EXTRA_CFLAGS += -Wformat-extra-args -Wstrict-prototypes -Wformat-insufficient-args \
+		-Wformat-invalid-specifier -Wformat-zero-length -Wnonnull
