@@ -1,8 +1,8 @@
 # Makefile for the focaltech touchscreen drivers.
 
-obj-$(CONFIG_TOUCHSCREEN_FOCALTECH_3683G) += focaltech_touch.o
+obj-$(CONFIG_TOUCHSCREEN_FOCALTECH_3683G) += focaltech_3683g.o
 
-focaltech_touch-y := \
+focaltech_3683g-y := \
 	focaltech_core.o \
 	focaltech_ex_fun.o \
 	focaltech_ex_mode.o \
