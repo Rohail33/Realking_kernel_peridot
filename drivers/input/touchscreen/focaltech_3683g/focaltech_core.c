@@ -52,6 +52,8 @@
 #endif //CONFIG_DRM
 #include "focaltech_core.h"
 
+#include "../xiaomi/xiaomi_touch.h"
+
 /*****************************************************************************
 * Private constant and macro definitions using #define
 *****************************************************************************/
@@ -78,6 +80,8 @@ static int fts_fod_recovery(struct fts_ts_data *ts_data);
 /*****************************************************************************
 * Static function prototypes
 *****************************************************************************/
+static struct xiaomi_touch_interface xiaomi_touch_interfaces;
+
 void fts_msleep(unsigned long msecs)
 {
 	if (msecs > 20) {
@@ -2518,6 +2522,84 @@ static int fts_notifier_callback_init(struct fts_ts_data *ts_data)
 	return ret;
 }
 
+static int fts_get_mode_value(int mode, int value_type)
+{
+	int value = -1;
+	if (mode < Touch_Mode_NUM && mode >= 0) {
+		value = xiaomi_touch_interfaces.touch_mode[mode][value_type];
+		FTS_INFO("mode:%d, value_type:%d, value:%d", mode, value_type,
+			 value);
+	} else
+		FTS_ERROR("mode:%d don't support");
+	return value;
+}
+
+static int fts_set_cur_value(int mode, int value)
+{
+	if (!fts_data || mode < 0) {
+		FTS_ERROR(
+			"Error, fts_data is NULL or the parameter is incorrect");
+		return -1;
+	}
+	FTS_INFO("touch mode:%d, value:%d", mode, value);
+	if (mode >= Touch_Mode_NUM) {
+		FTS_ERROR("mode is error:%d", mode);
+		return -EINVAL;
+	}
+
+	xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] = value;
+	if (xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] >
+	    xiaomi_touch_interfaces.touch_mode[mode][GET_MAX_VALUE]) {
+		xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] =
+			xiaomi_touch_interfaces.touch_mode[mode][GET_MAX_VALUE];
+	} else if (xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] <
+		   xiaomi_touch_interfaces.touch_mode[mode][GET_MIN_VALUE]) {
+		xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] =
+			xiaomi_touch_interfaces.touch_mode[mode][GET_MIN_VALUE];
+	}
+	return 0;
+}
+
+static int fts_get_mode_all(int mode, int *value)
+{
+	if (mode < Touch_Mode_NUM && mode >= 0) {
+		value[0] =
+			xiaomi_touch_interfaces.touch_mode[mode][GET_CUR_VALUE];
+		value[1] =
+			xiaomi_touch_interfaces.touch_mode[mode][GET_DEF_VALUE];
+		value[2] =
+			xiaomi_touch_interfaces.touch_mode[mode][GET_MIN_VALUE];
+		value[3] =
+			xiaomi_touch_interfaces.touch_mode[mode][GET_MAX_VALUE];
+	} else {
+		FTS_ERROR("mode:%d don't support", mode);
+	}
+	FTS_INFO("mode:%d, value:%d:%d:%d:%d", mode, value[0], value[1],
+		 value[2], value[3]);
+	return 0;
+}
+
+static void fts_init_touchmode_data(struct fts_ts_data *ts_data)
+{
+	FTS_INFO("touchfeature value init done");
+}
+
+static void fts_init_xiaomi_touchfeature(struct fts_ts_data *ts_data)
+{
+	mutex_init(&ts_data->cmd_update_mutex);
+	memset(&xiaomi_touch_interfaces, 0x00,
+	       sizeof(struct xiaomi_touch_interface));
+
+	xiaomi_touch_interfaces.getModeValue = fts_get_mode_value;
+	xiaomi_touch_interfaces.setModeValue = fts_set_cur_value;
+	xiaomi_touch_interfaces.getModeAll = fts_get_mode_all;
+	fts_init_touchmode_data(ts_data);
+
+	ts_data->pdata->fod_status = -1;
+
+	xiaomitouch_register_modedata(0, &xiaomi_touch_interfaces);
+}
+
 static int fts_notifier_callback_exit(struct fts_ts_data *ts_data)
 {
 	FTS_FUNC_ENTER();
@@ -2698,6 +2780,9 @@ int fts_ts_probe_entry(struct fts_ts_data *ts_data)
 	ret = fts_read_reg(FTS_REG_FW_VER, &fwver);
 	ts_data->fwver = fwver;
 	FTS_INFO("FW ver = %02x", fwver);
+
+	fts_init_xiaomi_touchfeature(ts_data);
+
 	FTS_FUNC_EXIT();
 	return 0;
 

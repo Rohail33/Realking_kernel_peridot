@@ -307,6 +307,8 @@ struct fts_ts_data {
 #endif
 	struct notifier_block fb_notif;
 	void *notifier_cookie;
+	struct mutex cmd_update_mutex;
+
 };
 
 enum _FTS_BUS_TYPE {
