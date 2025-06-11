@@ -69,7 +69,6 @@
 #include <linux/timekeeping.h>
 #endif
 #include "focaltech_common.h"
-#include <linux/soc/qcom/touchpanel_event_notify.h>
 
 /*****************************************************************************
 * Private constant and macro definitions using #define

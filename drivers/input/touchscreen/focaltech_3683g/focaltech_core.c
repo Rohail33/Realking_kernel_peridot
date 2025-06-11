@@ -680,29 +680,16 @@ __attribute__((unused)) static int fts_fod_resume(struct fts_ts_data *ts_data)
 
 void fts_fod_report_key(struct fts_ts_data *ts_data)
 {
-	struct touchpanel_coordinate coordinate;
-	memset(&coordinate, 0, sizeof(coordinate));
-
 	if ((ts_data->fod_fp_down) && (!ts_data->fp_down_report)) {
 		ts_data->fp_down_report = 1;
 		input_report_key(ts_data->input_dev, KEY_GESTURE_FOD, 1);
 		input_sync(ts_data->input_dev);
-		coordinate.x = ts_data->fp_x;
-		coordinate.y = ts_data->fp_y;
 		FTS_DEBUG("KEY_GESTURE_FOD, 1\n");
-		touchpanel_event_call_notifier(
-			TOUCHPANEL_EVENT_NOTIFIER_EVENT_FINGER_DOWN,
-			(void *)&coordinate);
 	} else if ((!ts_data->fod_fp_down) && (ts_data->fp_down_report)) {
 		ts_data->fp_down_report = 0;
 		input_report_key(ts_data->input_dev, KEY_GESTURE_FOD, 0);
 		input_sync(ts_data->input_dev);
-		coordinate.x = ts_data->fp_x;
-		coordinate.y = ts_data->fp_y;
 		FTS_DEBUG("KEY_GESTURE_FOD, 0\n");
-		touchpanel_event_call_notifier(
-			TOUCHPANEL_EVENT_NOTIFIER_EVENT_FINGER_UP,
-			(void *)&coordinate);
 		if (ts_data->fod_mode == FTS_FOD_UNLOCK) {
 			fts_fod_set_reg(DISABLE);
 		}
@@ -2350,16 +2337,9 @@ fts_panel_notifier_callback(enum panel_event_notifier_tag tag,
 	}
 
 	FTS_DEBUG(
-		"Notification type:%d, early_trigger:%d, esd_recoverying:%d\n",
+		"Notification type:%d, early_trigger:%d",
 		notification->notif_type,
-		notification->notif_data.early_trigger,
-		notification->notif_data.esd_recoverying);
-
-	/*if TP receive notification when esd recovery, ignore this notification*/
-	if (notification->notif_data.esd_recoverying) {
-		FTS_INFO("esd_recoverying is true, do nothing here\n");
-		return;
-	}
+		notification->notif_data.early_trigger);
 
 	switch (notification->notif_type) {
 	case DRM_PANEL_EVENT_UNBLANK:
