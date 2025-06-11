@@ -318,8 +318,8 @@ extern long int FTS_CHIP_TYPE;
  * FTS_GET_MODULE_NUM >= 2, compatible with FTS_MODULE2_ID
  * FTS_GET_MODULE_NUM >= 3, compatible with FTS_MODULE3_ID
  */
-#define FTS_MODULE_ID 0x0044
-#define FTS_MODULE2_ID 0x00DA
+#define FTS_MODULE_ID  0x8D
+#define FTS_MODULE2_ID 0x5F
 #define FTS_MODULE3_ID 0x0000
 
 /*
@@ -330,8 +330,8 @@ extern long int FTS_CHIP_TYPE;
  * You should rename fw to "focaltech_ts_fw_tianma", and push it into
  * etc/firmware or by customers
  */
-#define FTS_MODULE_NAME "vxn"
-#define FTS_MODULE2_NAME "boe"
+#define FTS_MODULE_NAME "TianMa"
+#define FTS_MODULE2_NAME "TianMa2"
 #define FTS_MODULE3_NAME ""
 
 /*
