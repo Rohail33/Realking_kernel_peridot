@@ -296,6 +296,8 @@ struct fts_ts_data {
 	char customer_info[FTS_MAX_CUSTOMER_INFO];
 	struct regulator *vci;
 	struct regulator *vddio;
+	struct regulator *avdd;
+	struct regulator *iovdd;
 #if FTS_PINCTRL_EN
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *pins_active;

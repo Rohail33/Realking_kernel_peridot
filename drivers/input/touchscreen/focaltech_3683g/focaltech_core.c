@@ -1694,6 +1694,11 @@ static int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
 		return -EINVAL;
 	}
 
+	if (IS_ERR_OR_NULL(ts_data->avdd)) {
+		FTS_ERROR("avdd is invalid");
+		return -EINVAL;
+	}
+
 	FTS_FUNC_ENTER();
 	if (enable) {
 		if (ts_data->power_disabled) {
@@ -1706,11 +1711,26 @@ static int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
 					  ret);
 			}
 
+			ret = regulator_enable(ts_data->avdd);
+			if (ret) {
+				FTS_ERROR("enable avdd regulator failed,ret=%d",
+					  ret);
+			}
+
 			if (!IS_ERR_OR_NULL(ts_data->vddio)) {
 				ret = regulator_enable(ts_data->vddio);
 				if (ret) {
 					FTS_ERROR(
 						"enable vddio regulator failed,ret=%d",
+						ret);
+				}
+			}
+
+			if (!IS_ERR_OR_NULL(ts_data->iovdd)) {
+				ret = regulator_enable(ts_data->iovdd);
+				if (ret) {
+					FTS_ERROR(
+						"enable iovdd regulator failed,ret=%d",
 						ret);
 				}
 			}
@@ -1731,11 +1751,25 @@ static int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
 						ret);
 				}
 			}
+			if (!IS_ERR_OR_NULL(ts_data->avdd)) {
+				ret = regulator_disable(ts_data->avdd);
+				if (ret) {
+					FTS_ERROR(
+						"disable avdd regulator failed,ret=%d",
+						ret);
+				}
+			}
 			usleep_range(200, 200);
 			ret = regulator_disable(ts_data->vddio);
 			if (ret) {
 				FTS_ERROR(
 					"disable vddio regulator failed,ret=%d",
+					ret);
+			}
+			ret = regulator_disable(ts_data->iovdd);
+			if (ret) {
+				FTS_ERROR(
+					"disable iovdd regulator failed,ret=%d",
 					ret);
 			}
 			ts_data->power_disabled = true;
@@ -1762,9 +1796,17 @@ static int fts_power_source_init(struct fts_ts_data *ts_data)
 
 	FTS_FUNC_ENTER();
 	ts_data->vci = regulator_get(ts_data->dev, "vci");
+	ts_data->avdd = regulator_get(ts_data->dev, "avdd");
+
 	if (IS_ERR_OR_NULL(ts_data->vci)) {
 		ret = PTR_ERR(ts_data->vci);
 		FTS_ERROR("get vci regulator failed,ret=%d", ret);
+		return ret;
+	}
+
+	if (IS_ERR_OR_NULL(ts_data->avdd)) {
+		ret = PTR_ERR(ts_data->avdd);
+		FTS_ERROR("get avdd regulator failed,ret=%d", ret);
 		return ret;
 	}
 
@@ -1774,6 +1816,16 @@ static int fts_power_source_init(struct fts_ts_data *ts_data)
 		if (ret) {
 			FTS_ERROR("vci regulator set_vtg failed ret=%d", ret);
 			regulator_put(ts_data->vci);
+			return ret;
+		}
+	}
+
+	if (regulator_count_voltages(ts_data->avdd) > 0) {
+		ret = regulator_set_voltage(ts_data->avdd, FTS_VTG_MIN_UV,
+					    FTS_VTG_MAX_UV);
+		if (ret) {
+			FTS_ERROR("avdd regulator set_vtg failed ret=%d", ret);
+			regulator_put(ts_data->avdd);
 			return ret;
 		}
 	}
@@ -1789,6 +1841,21 @@ static int fts_power_source_init(struct fts_ts_data *ts_data)
 					"vddio regulator set_vtg failed,ret=%d",
 					ret);
 				regulator_put(ts_data->vddio);
+			}
+		}
+	}
+
+	ts_data->iovdd = regulator_get(ts_data->dev, "iovdd");
+	if (!IS_ERR_OR_NULL(ts_data->iovdd)) {
+		if (regulator_count_voltages(ts_data->iovdd) > 0) {
+			ret = regulator_set_voltage(ts_data->iovdd,
+						    FTS_IOVCC_VTG_MIN_UV,
+						    FTS_IOVCC_VTG_MAX_UV);
+			if (ret) {
+				FTS_ERROR(
+					"iovdd regulator set_vtg failed,ret=%d",
+					ret);
+				regulator_put(ts_data->iovdd);
 			}
 		}
 	}
@@ -1811,12 +1878,23 @@ static int fts_power_source_exit(struct fts_ts_data *ts_data)
 			regulator_set_voltage(ts_data->vci, 0, FTS_VTG_MAX_UV);
 		regulator_put(ts_data->vci);
 	}
+	if (!IS_ERR_OR_NULL(ts_data->avdd)) {
+		if (regulator_count_voltages(ts_data->avdd) > 0)
+			regulator_set_voltage(ts_data->avdd, 0, FTS_VTG_MAX_UV);
+		regulator_put(ts_data->avdd);
+	}
 
 	if (!IS_ERR_OR_NULL(ts_data->vddio)) {
 		if (regulator_count_voltages(ts_data->vddio) > 0)
 			regulator_set_voltage(ts_data->vddio, 0,
 					      FTS_IOVCC_VTG_MAX_UV);
 		regulator_put(ts_data->vddio);
+	}
+	if (!IS_ERR_OR_NULL(ts_data->iovdd)) {
+		if (regulator_count_voltages(ts_data->iovdd) > 0)
+			regulator_set_voltage(ts_data->iovdd, 0,
+					      FTS_IOVCC_VTG_MAX_UV);
+		regulator_put(ts_data->iovdd);
 	}
 
 	return 0;
