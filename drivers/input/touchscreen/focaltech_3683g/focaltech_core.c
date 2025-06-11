@@ -2465,13 +2465,28 @@ static int fts_notifier_callback_init(struct fts_ts_data *ts_data)
 {
 	int ret = 0;
 	void *cookie;
+	int retry_count = 3;
+	int delay_ms = 5000;
+	int attempt;
+
 	FTS_FUNC_ENTER();
 #if IS_ENABLED(CONFIG_DRM)
 //    ts_data->fb_notif.notifier_call = fb_notifier_callback;
 #if IS_ENABLED(CONFIG_DRM_PANEL)
-	ret = drm_check_dt(ts_data);
-	if (ret)
-		FTS_ERROR("parse drm-panel fail");
+
+	for (attempt = 0; attempt < retry_count; attempt++) {
+		ret = drm_check_dt(ts_data);
+		if (ret == 0)
+			break;
+		FTS_ERROR("parse drm-panel fail, attempt %d/%d", attempt + 1, retry_count);
+		if (attempt < retry_count - 1)
+			msleep(delay_ms);
+	}
+
+	if (ret) {
+		FTS_ERROR("Failed to parse drm-panel after %d attempts", retry_count);
+	}
+
 	FTS_INFO("init notifier with drm_panel_notifier_register");
 	if (active_panel) {
 		cookie = panel_event_notifier_register(
