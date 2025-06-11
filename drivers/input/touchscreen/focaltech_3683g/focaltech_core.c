@@ -341,7 +341,7 @@ static int fts_get_chip_types(struct fts_ts_data *ts_data, u8 id_h, u8 id_l,
 
 	FTS_INFO("verify id:0x%02x%02x", id_h, id_l);
 
-	if (id_l == 0x72 || id_l == 0xb3) {
+	if (id_l == 0x72 || id_l == 0xb3 || id_l == 0x56) {
 		FTS_CHIP_TYPE = _FT3683G;
 		ts_data->ic_type_flag = true;
 		FTS_DEBUG("choose 3683g\n");
