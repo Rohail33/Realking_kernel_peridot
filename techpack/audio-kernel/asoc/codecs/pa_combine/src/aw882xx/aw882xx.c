@@ -37,10 +37,6 @@
 #include "aw882xx_bin_parse.h"
 #include "aw882xx_spin.h"
 
-#if IS_ENABLED(CONFIG_MIEV)
-#include <miev/mievent.h>
-#endif
-
 #define AW882XX_DRIVER_VERSION "Dv1.14.2"
 #define AW882XX_I2C_NAME "aw882xx_smartpa"
 
@@ -363,9 +359,6 @@ static void aw882xx_start_pa(struct aw882xx *aw882xx)
 			ret = aw882xx_device_start(aw882xx->aw_pa);
 			if (ret) {
 				aw_dev_err(aw882xx->dev, "start failed, cnt:%d", i);
-		#if IS_ENABLED(CONFIG_MIEV)
-				mievent_report(906001354,"PA data exception",aw882xx->dev);
-		#endif
 				continue;
 			} else {
 				if (aw882xx->dc_flag)
@@ -2585,9 +2578,6 @@ static int aw882xx_i2c_probe(struct i2c_client *i2c,
 	ret = aw882xx_read_chipid(aw882xx);
 	if (ret < 0) {
 		aw_dev_err(&i2c->dev, "aw882xx_read_chipid failed ret=%d", ret);
-#if IS_ENABLED(CONFIG_MIEV)
-		mievent_report(906001351,"PA internal exception",&i2c->dev);
-#endif
 		return ret;
 	}
 
@@ -2603,9 +2593,6 @@ static int aw882xx_i2c_probe(struct i2c_client *i2c,
 	ret = aw_componet_codec_register(aw882xx);
 	if (ret) {
 		aw_dev_err(&i2c->dev, "codec register failed");
-#if IS_ENABLED(CONFIG_MIEV)
-		mievent_report(906001352,"PA detection exception",&i2c->dev);
-#endif
 		return ret;
 	}
 
@@ -2738,24 +2725,6 @@ static void __exit aw882xx_i2c_exit(void)
 	i2c_del_driver(&aw882xx_i2c_driver);
 }
 module_exit(aw882xx_i2c_exit);
-
-
-int mievent_report(unsigned int eventid,const char *value,struct device *dev)
-{
-#if IS_ENABLED(CONFIG_MIEV)
-	struct misight_mievent *mievent;
-	char i2c_info[20];
-
-	sprintf(i2c_info,"%s",dev->kobj.name);
-	dev_info(dev, "%s: reg = %s, KeyWord = %s DFS report\n", __func__, i2c_info,value);
-	mievent  = cdev_tevent_alloc(eventid);
-	cdev_tevent_add_str(mievent, "I2cAddress",i2c_info);
-	cdev_tevent_add_str(mievent, "Keyword", value);
-	cdev_tevent_write(mievent);
-	cdev_tevent_destroy(mievent);
-#endif
-	return 0;
-}
 
 MODULE_DESCRIPTION("ASoC AW882XX Smart PA Driver");
 MODULE_LICENSE("GPL v2");
