@@ -405,6 +405,11 @@ int msm_common_snd_hw_params(struct snd_pcm_substream *substream,
 	int index = get_mi2s_tdm_auxpcm_intf_index(stream_name);
 	struct clk_cfg intf_clk_cfg;
 
+	if (get_smartpa_type() == SMARTPA_FS19XX) {
+		slot_width = 16;
+		dev_info(rtd->card->dev, "%s: SMARTPA_FS19XX slot_width overwrite to 16.\n", __func__);
+	}
+
 	dev_dbg(rtd->card->dev,
 		"%s: substream = %s  stream = %d\n",
 		__func__, substream->name, substream->stream);

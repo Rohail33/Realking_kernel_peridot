@@ -41,6 +41,34 @@
 #include "msm_common.h"
 #include "msm_dailink.h"
 
+#define PA_NAME_MAX  24
+static int probe_cout = 0;
+static char smartpa_num = 0;
+static char smartpa_type[PA_NAME_MAX] = "none";
+
+static int tdm_rx0_id = 0;
+static int tdm_rx1_id = 1;
+static int tdm_tx_id = 0;
+
+static const char *smartpa_cust_name[SMARTPA_MAX] = {
+	[SMARTPA_NONE] = "none",
+	[SMARTPA_AW882XX] = "aw882xx",
+	[SMARTPA_FS19XX] = "fs19xx",
+};
+
+static const char *tdm_rx_dailink_name[] = {
+	LPASS_BE_QUIN_TDM_RX_0,
+    LPASS_BE_QUIN_TDM_RX_0_VIRT,
+};
+
+static const char *tdm_tx_dailink_name[] = {
+	LPASS_BE_QUIN_TDM_TX_0,
+};
+
+#define  SMARTPA_MAX_NUM  3
+static int smartpa_count = 0;
+struct snd_soc_dai_link_component smartpa_dails[SMARTPA_MAX_NUM] = {0};
+
 #define DRV_NAME "waipio-asoc-snd"
 #define __CHIPSET__ "WAIPIO "
 #define MSM_DAILINK_NAME(name) (__CHIPSET__#name)
@@ -1750,6 +1778,168 @@ void msm_common_set_pdata(struct snd_soc_card *card,
 	pdata->common_pdata = common_pdata;
 }
 
+bool check_smartpa_type(const char *name)
+{
+	pr_debug("%s smartpa_type: %s \n", __func__, smartpa_type);
+	if (!strcmp(smartpa_type, "none") || !strcmp(smartpa_type, name)) {
+		return true;
+	} else {
+		return false;
+	}
+}
+EXPORT_SYMBOL_GPL(check_smartpa_type);
+
+int get_smartpa_type(void)
+{
+	pr_debug("%s smartpa_num: %d \n", __func__, smartpa_num);
+	return smartpa_num;
+}
+EXPORT_SYMBOL_GPL(get_smartpa_type);
+
+int set_smartpa_type(const char *name, unsigned int size)
+{
+	int i;
+
+	if (size > PA_NAME_MAX) {
+		pr_err("%s size[%d] > %d too large \n", __func__, size, PA_NAME_MAX);
+		return -1;
+	}
+
+	for (i = 0; i < SMARTPA_MAX; i++) {
+		if(!strncmp(name, smartpa_cust_name[i], size)){
+			pr_debug("%s find: %s \n", __func__, smartpa_cust_name[i]);
+			smartpa_num = i;
+			break;
+		}
+	}
+
+	if (i == SMARTPA_MAX) {
+		pr_err("%s find: %s failed\n", __func__, name);
+		return -1;
+	}
+
+	memcpy(smartpa_type, name, size);
+	pr_info("%s smartpa_type: %s \n", __func__, smartpa_type);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(set_smartpa_type);
+
+#define NAME_SIZE (32)
+static char *fmt_single_name(struct device *dev, int *id)
+{
+	char *found, name[NAME_SIZE];
+	unsigned int id1, id2;
+
+	if (dev_name(dev) == NULL)
+		return NULL;
+
+	strlcpy(name, dev_name(dev), NAME_SIZE);
+
+	/* are we a "%s.%d" name (platform and SPI components) */
+	found = strstr(name, dev->driver->name);
+	if (found) {
+		/* get ID */
+		if (sscanf(&found[strlen(dev->driver->name)], ".%d", id) == 1) {
+
+			/* discard ID from name if ID == -1 */
+			if (*id == -1)
+				found[strlen(dev->driver->name)] = '\0';
+		}
+
+	} else {
+		/* I2C component devices are named "bus-addr"  */
+		if (sscanf(name, "%x-%x", &id1, &id2) == 2) {
+			char tmp[NAME_SIZE];
+
+			/* create unique ID number from I2C addr and bus */
+			*id = ((id1 & 0xffff) << 16) + id2;
+
+			/* sanitize component name for DAI link creation */
+			snprintf(tmp, NAME_SIZE, "%s.%s", dev->driver->name, name);
+			strlcpy(name, tmp, NAME_SIZE);
+		} else
+			*id = 0;
+	}
+
+	return kstrdup(name, GFP_KERNEL);
+}
+
+void set_smartpa_codec(struct device *dev, const char *dai_name)
+{
+	int id;
+
+	if ((dev == NULL) || (dai_name == NULL)
+		|| (smartpa_count >= SMARTPA_MAX_NUM)) {
+		dev_err(dev, "%s dev or dai_name is NULL, or count > MAX!\n", __func__);
+		return;
+	}
+
+	smartpa_dails[smartpa_count].of_node = NULL;
+	smartpa_dails[smartpa_count].name = fmt_single_name(dev, &id);
+	smartpa_dails[smartpa_count].dai_name = dai_name;
+
+	dev_info(dev, "%s smartpa_dails name:%s  dai_name:%s \n", __func__,
+		smartpa_dails[smartpa_count].name, smartpa_dails[smartpa_count].dai_name);
+
+	smartpa_count++;
+}
+EXPORT_SYMBOL_GPL(set_smartpa_codec);
+
+static void smartpa_dai_link_select(void)
+{
+	struct snd_soc_dai_link *dailink = msm_tdm_dai_links;
+	int size = ARRAY_SIZE(msm_tdm_dai_links);
+	int i = 0;
+
+	if (smartpa_count == 0) {
+		pr_err("%s smartpa_count:%d return \n", __func__, smartpa_count);
+		return;
+	}
+
+	for (i = 0; i < size; i++) {
+		if (!strncmp(dailink[i].name, tdm_rx_dailink_name[tdm_rx0_id], strlen(dailink[i].name))
+			||!strncmp(dailink[i].name, tdm_rx_dailink_name[tdm_rx1_id], strlen(dailink[i].name))
+			|| !strncmp(dailink[i].name, tdm_tx_dailink_name[tdm_tx_id], strlen(dailink[i].name))) {
+			dailink[i].codecs = smartpa_dails;
+			dailink[i].num_codecs = smartpa_count;
+			pr_info("%s dailink:%s codec_name: %s codec_dai: %s \n", __func__,
+				dailink[i].name, smartpa_dails[0].name, smartpa_dails[0].dai_name);
+		}
+	}
+}
+
+static ssize_t smartpa_type_show(struct kobject *kobj,
+				struct kobj_attribute *attr, char *buff)
+{
+	return sprintf(buff, "%s\n", smartpa_type);
+}
+
+static struct kobj_attribute smartpa_type_attr =
+	__ATTR(smartpa_type, 0644, smartpa_type_show, NULL);
+
+static int smartpa_sysfs_init(void)
+{
+	int ret = -1;
+
+	static struct kobject *ext_debug_kobj;
+
+	if (ext_debug_kobj)
+		return 0;
+
+	ext_debug_kobj = kobject_create_and_add("smartpa", kernel_kobj);
+	if (ext_debug_kobj == NULL) {
+		ret = -ENOMEM;
+		pr_err("register sysfs failed. ret = %d\n", ret);
+		return ret;
+	}
+	ret = sysfs_create_file(ext_debug_kobj, &smartpa_type_attr.attr);
+
+	if (ret)
+ 		pr_err("create sysfs failed. ret = %d\n", ret);
+	return ret;
+}
+
 static int msm_asoc_machine_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = NULL;
@@ -1780,7 +1970,14 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 		pdata->wsa_max_devs = 0;
 	}
 
+        if (probe_cout == 0) {
+                smartpa_dai_link_select();
+                smartpa_sysfs_init();
+        }
+        probe_cout++;
+
 	card = populate_snd_card_dailinks(&pdev->dev, pdata->wsa_max_devs);
+
 	if (!card) {
 		dev_err(&pdev->dev, "%s: Card uninitialized\n", __func__);
 		ret = -EINVAL;
