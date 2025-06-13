@@ -30,12 +30,18 @@
 #include <sound/control.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
+#include "fsm_public.h"
+#include "fsm-dev.h"
 
 #include "aw882xx.h"
 #include "aw882xx_log.h"
 #include "aw882xx_dsp.h"
 #include "aw882xx_bin_parse.h"
 #include "aw882xx_spin.h"
+
+extern bool check_smartpa_type(const char *name);
+extern int set_smartpa_type(const char *name, unsigned int size);
+extern void set_smartpa_codec(struct device *dev, const char *dai_name);
 
 #define AW882XX_DRIVER_VERSION "Dv1.14.2"
 #define AW882XX_I2C_NAME "aw882xx_smartpa"
@@ -1795,6 +1801,7 @@ static int aw_componet_codec_register(struct aw882xx *aw882xx)
 			dev_name(aw882xx->dev));
 	}
 
+	set_smartpa_codec(aw882xx->dev, dai_drv[0].name);
 	return 0;
 }
 /*****************************************************
@@ -2039,6 +2046,36 @@ static int aw882xx_read_chipid(struct aw882xx *aw882xx)
 		msleep(AW_READ_CHIPID_RETRY_DELAY);
 	}
 
+	return -EINVAL;
+}
+
+static int fs19xx_read_chipid(struct aw882xx *aw882xx)
+{
+	int ret = -1;
+	unsigned int cnt = 0;
+	unsigned int reg_value = 0;
+
+	while (cnt < AW_READ_CHIPID_RETRIES) {
+		ret = aw882xx_i2c_read(aw882xx, FS19XX_CHIP_ID_REG, &reg_value);
+		if (ret < 0) {
+			aw_dev_err(aw882xx->dev, "failed to read FS REG_ID: %d", ret);
+			return -EIO;
+		}
+		aw_dev_err(aw882xx->dev, "failed to read REG_ID: %d", ret);
+		switch (reg_value) {
+		case FS1945_CHIP_ID:
+			aw_dev_info(aw882xx->dev, "fs1945 detected");
+			return 0;
+
+		default:
+			aw_dev_info(aw882xx->dev, "unsupported device revision (0x%x)",
+					reg_value);
+			break;
+		}
+		cnt++;
+
+		msleep(AW_READ_CHIPID_RETRY_DELAY);
+	}
 	return -EINVAL;
 }
 
@@ -2551,6 +2588,12 @@ static int aw882xx_i2c_probe(struct i2c_client *i2c,
 		return -EIO;
 	}
 
+	if (!check_smartpa_type("aw882xx")) {
+		aw_dev_err(&i2c->dev, "other smartpa type already set, no need to probe");
+		ret = exfsm_i2c_probe(i2c, id);
+		return ret;
+	}
+
 	/*dev free all auto free*/
 	aw882xx = aw882xx_malloc_init(i2c);
 	if (aw882xx == NULL) {
@@ -2577,9 +2620,29 @@ static int aw882xx_i2c_probe(struct i2c_client *i2c,
 	/* aw882xx chip id */
 	ret = aw882xx_read_chipid(aw882xx);
 	if (ret < 0) {
-		aw_dev_err(&i2c->dev, "aw882xx_read_chipid failed ret=%d", ret);
-		return ret;
+		ret = fs19xx_read_chipid(aw882xx);
+		if (ret < 0) {
+			aw_dev_err(&i2c->dev, "read_chipid failed ret=%d", ret);
+			return ret;
+		} else {
+			/*free aw gpio*/
+			if (gpio_is_valid(aw882xx->irq_gpio)) {
+				 gpio_free(aw882xx->irq_gpio);
+			}
+			if (gpio_is_valid(aw882xx->reset_gpio)) {
+				gpio_set_value_cansleep(aw882xx->reset_gpio, 0);
+				gpio_free(aw882xx->reset_gpio);
+			}
+			if (gpio_is_valid(aw882xx->spksw_gpio)) {
+				gpio_free(aw882xx->spksw_gpio);
+			}
+			devm_kfree(&i2c->dev, aw882xx);
+			ret = exfsm_i2c_probe(i2c, id);
+			return ret;
+		}
 	}
+
+	set_smartpa_type("aw882xx", sizeof("aw882xx"));
 
 	/*aw pa init*/
 	ret = aw882xx_init(aw882xx);
@@ -2629,6 +2692,13 @@ err_sysfs:
 static void aw882xx_i2c_remove(struct i2c_client *i2c)
 {
 	struct aw882xx *aw882xx = i2c_get_clientdata(i2c);
+
+	if (!check_smartpa_type("aw882xx")) {
+		if (aw882xx != NULL) {
+			devm_kfree(&i2c->dev, aw882xx);
+		}
+		exfsm_i2c_remove(i2c);
+	}
 
 	aw_dev_info(aw882xx->dev, "enter");
 
