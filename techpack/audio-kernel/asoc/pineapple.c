@@ -50,12 +50,6 @@
 #include "msm-audio-defs.h"
 #include "msm_common.h"
 #include "msm_dailink.h"
-#if IS_ENABLED(CONFIG_MIEV)
-#include <miev/mievent.h>
-#include <linux/timer.h>
-#include <linux/timex.h>
-#include <linux/rtc.h>
-#endif
 
 #define DRV_NAME "pineapple-asoc-snd"
 #define __CHIPSET__ "PINEAPPLE "
@@ -2345,10 +2339,6 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct clk *lpass_audio_hw_vote = NULL;
 	const struct of_device_id *match;
-#if IS_ENABLED(CONFIG_MIEV)
-	struct misight_mievent *mievent;
-	struct timespec64 curTime;
-#endif
 	if (!pdev->dev.of_node) {
 		dev_err(&pdev->dev, "%s: No platform supplied from device tree\n", __func__);
 		return -EINVAL;
@@ -2514,17 +2504,6 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 err:
 	devm_kfree(&pdev->dev, pdata);
 	printk("<%s><%d>: X, failed.\n", __func__, __LINE__);
-#if IS_ENABLED(CONFIG_MIEV)
-	if(ret != -EPROBE_DEFER) {
-		dev_dbg(&pdev->dev,"<%s><%d>: X, failed.non-DEFER skip sound card registration.\n", __func__, __LINE__);
-		ktime_get_real_ts64(&curTime);
-		mievent  = cdev_tevent_alloc(906001001);
-		cdev_tevent_add_int(mievent, "CurrentTime", curTime.tv_sec);
-		cdev_tevent_add_str(mievent, "Keyword", "sound_card_not_registered");
-		cdev_tevent_write(mievent);
-		cdev_tevent_destroy(mievent);
-	}
-#endif
 	return ret;
 }
 
