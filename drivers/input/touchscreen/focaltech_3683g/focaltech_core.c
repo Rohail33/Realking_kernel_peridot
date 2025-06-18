@@ -2596,6 +2596,7 @@ static void fts_init_xiaomi_touchfeature(struct fts_ts_data *ts_data)
 	fts_init_touchmode_data(ts_data);
 
 	ts_data->pdata->fod_status = -1;
+	ts_data->gesture_support = 1;
 
 	xiaomitouch_register_modedata(0, &xiaomi_touch_interfaces);
 }
