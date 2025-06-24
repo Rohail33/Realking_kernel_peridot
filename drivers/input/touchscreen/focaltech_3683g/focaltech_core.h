@@ -301,7 +301,12 @@ struct fts_ts_data {
 	struct notifier_block fb_notif;
 	void *notifier_cookie;
 	struct mutex cmd_update_mutex;
+	u8 gesture_status;
+};
 
+enum GESTURE_MODE_TYPE {
+    GESTURE_DOUBLETAP = 0,
+    GESTURE_SINGLETAP = 1,
 };
 
 enum _FTS_BUS_TYPE {

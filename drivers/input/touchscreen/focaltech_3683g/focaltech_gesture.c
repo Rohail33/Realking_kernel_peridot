@@ -33,6 +33,7 @@
 * 1.Included header files
 *****************************************************************************/
 #include "focaltech_core.h"
+#include "../xiaomi/xiaomi_touch.h"
 
 /******************************************************************************
 * Private constant and macro definitions using #define
@@ -67,7 +68,10 @@
 #define GESTURE_V 0x54
 #define GESTURE_Z 0x41
 #define GESTURE_C 0x34
-#define GESTURE_CLICK 0x27
+#define GESTURE_CLICK 0x25
+
+#define GESTURE_DOUBLETAP_EN   (1 << GESTURE_DOUBLETAP)
+#define GESTURE_SINGLETAP_EN   (1 << GESTURE_SINGLETAP)
 
 /*****************************************************************************
 * Private enumerations, structures and unions using typedef
@@ -270,6 +274,14 @@ static void fts_gesture_report(struct input_dev *input_dev, int gesture_id)
 	int gesture;
 
 	FTS_DEBUG("gesture_id:0x%x", gesture_id);
+	if (gesture_id == GESTURE_CLICK) {
+        notify_gesture_single_tap();
+		FTS_DEBUG("gesture click");
+    }
+	if (gesture_id == GESTURE_DOUBLECLICK) {
+        notify_gesture_double_tap();
+		FTS_DEBUG("gesture double click");
+    }
 	switch (gesture_id) {
 	case GESTURE_LEFT:
 		gesture = KEY_GESTURE_LEFT;
@@ -282,9 +294,6 @@ static void fts_gesture_report(struct input_dev *input_dev, int gesture_id)
 		break;
 	case GESTURE_DOWN:
 		gesture = KEY_GESTURE_DOWN;
-		break;
-	case GESTURE_DOUBLECLICK:
-		gesture = KEY_GESTURE_U;
 		break;
 	case GESTURE_O:
 		gesture = KEY_GESTURE_O;
@@ -312,9 +321,6 @@ static void fts_gesture_report(struct input_dev *input_dev, int gesture_id)
 		break;
 	case GESTURE_C:
 		gesture = KEY_GESTURE_C;
-		break;
-	case GESTURE_CLICK:
-		gesture = KEY_GESTURE_CLICK;
 		break;
 	default:
 		gesture = -1;
@@ -378,6 +384,16 @@ int fts_gesture_readdata(struct fts_ts_data *ts_data, u8 *touch_buf)
 	memset(gesture->coordinate_y, 0, FTS_GESTURE_POINTS_MAX * sizeof(u16));
 	gesture->gesture_id = buf[2];
 	gesture->point_num = buf[3];
+	if (gesture->gesture_id == GESTURE_DOUBLECLICK &&
+		!(ts_data->gesture_status & GESTURE_DOUBLETAP_EN)) {
+		FTS_INFO("double click is not enabled!");
+		return 1;
+	}
+	if (gesture->gesture_id == GESTURE_CLICK &&
+		!(ts_data->gesture_status & GESTURE_SINGLETAP_EN)) {
+		FTS_INFO("single tap is not enabled!");
+		return 1;
+	}
 	FTS_DEBUG("gesture_id=%d, point_num=%d", gesture->gesture_id,
 		  gesture->point_num);
 
