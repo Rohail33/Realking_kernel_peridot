@@ -2377,6 +2377,10 @@ static int fts_set_cur_value(int mode, int value)
 		fts_update_gesture_state(fts_data, GESTURE_SINGLETAP, value != 0 ? true : false);
 		return 0;
 	}
+	if (mode == THP_FOD_DOWNUP_CTL && value >= 0) {
+		update_fod_press_status(value != 0);
+		return 0;
+	}
 	xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] = value;
 	if (xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] >
 	    xiaomi_touch_interfaces.touch_mode[mode][GET_MAX_VALUE]) {
@@ -2426,6 +2430,7 @@ static void fts_init_xiaomi_touchfeature(struct fts_ts_data *ts_data)
 	fts_init_touchmode_data(ts_data);
 
 	ts_data->gesture_support = 1;
+	ts_data->pdata->fod_status = -1;
 
 	xiaomitouch_register_modedata(0, &xiaomi_touch_interfaces);
 }

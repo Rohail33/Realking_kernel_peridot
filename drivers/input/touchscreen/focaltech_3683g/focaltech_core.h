@@ -301,6 +301,7 @@ struct fts_ts_data {
 	struct notifier_block fb_notif;
 	void *notifier_cookie;
 	struct mutex cmd_update_mutex;
+	int fod_status;
 	u8 gesture_status;
 };
 
