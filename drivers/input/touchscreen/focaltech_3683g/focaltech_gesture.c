@@ -436,9 +436,6 @@ int fts_gesture_suspend(struct fts_ts_data *ts_data)
 				break;
 		}
 	}
-	if ((ts_data->fod_mode) && (ts_data->fod_mode != 3)) {
-		fts_write_reg(FTS_REG_FOD_MODE_EN, FTS_VAL_FOD_ENABLE);
-	}
 
 	if (i >= FTS_MAX_RETRIES_WRITEREG)
 		FTS_ERROR("make IC enter into gesture(suspend) fail,state:%x",
@@ -468,10 +465,6 @@ int fts_gesture_resume(struct fts_ts_data *ts_data)
 		FTS_ERROR("make IC exit gesture(resume) fail,state:%x", state);
 	else
 		FTS_INFO("resume from gesture successfully");
-	if ((ts_data->fod_mode != FTS_FOD_DISABLE) &&
-	    (ts_data->fod_mode != 3)) {
-		fts_write_reg(FTS_REG_FOD_MODE_EN, FTS_VAL_FOD_ENABLE);
-	}
 
 	FTS_FUNC_EXIT();
 	return 0;
@@ -498,7 +491,6 @@ int fts_gesture_init(struct fts_ts_data *ts_data)
 	input_set_capability(input_dev, EV_KEY, KEY_GESTURE_Z);
 	input_set_capability(input_dev, EV_KEY, KEY_GESTURE_C);
 	input_set_capability(input_dev, EV_KEY, KEY_GESTURE_CLICK);
-	input_set_capability(input_dev, EV_KEY, KEY_GESTURE_FOD);
 
 	__set_bit(KEY_GESTURE_RIGHT, input_dev->keybit);
 	__set_bit(KEY_GESTURE_LEFT, input_dev->keybit);
@@ -515,14 +507,12 @@ int fts_gesture_init(struct fts_ts_data *ts_data)
 	__set_bit(KEY_GESTURE_C, input_dev->keybit);
 	__set_bit(KEY_GESTURE_Z, input_dev->keybit);
 	__set_bit(KEY_GESTURE_CLICK, input_dev->keybit);
-	__set_bit(KEY_GESTURE_FOD, input_dev->keybit);
 
 	fts_create_gesture_sysfs(ts_data->dev);
 
 	memset(&fts_gesture_data, 0, sizeof(struct fts_gesture_st));
 	ts_data->gesture_bmode = GESTURE_BM_REG;
 	ts_data->gesture_support = DISABLE;
-	ts_data->fod_mode = FTS_FOD_DISABLE;
 
 	if (ts_data->bus_type == BUS_TYPE_SPI) {
 		if ((ts_data->ic_info.ids.type <= 0x25) ||

@@ -110,9 +110,6 @@
 #define FTS_REG_PANEL_ID 0xE3
 #define FTS_REG_LIC_VER 0xE4
 #define FTS_REG_ESD_SATURATE 0xED
-#define FTS_REG_FOD_MODE_EN 0xCF
-#define FTS_VAL_FOD_ENABLE 0x02
-#define FTS_REG_FOD_DATA 0xE1
 #define FTS_REG_TPINFO 0x96
 #define FTS_REG_TPCFG 0x9D
 #define FTS_REG_POCKET_MODE 0x9A
@@ -127,10 +124,6 @@
 #define FTS_SYSFS_ECHO_ON(buf) (buf[0] == '1')
 #define FTS_SYSFS_ECHO_OFF(buf) (buf[0] == '0')
 #define FTS_SYSFS_ECHO_UNLOCK(buf) (buf[0] == '2')
-
-#define FTS_FOD_DISABLE 0
-#define FTS_FOD_ENABLE 1
-#define FTS_FOD_UNLOCK 2
 
 #define kfree_safe(pbuf)                                                       \
 	do {                                                                   \

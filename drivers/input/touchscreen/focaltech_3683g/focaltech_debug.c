@@ -1078,7 +1078,6 @@ int fts_fwdbg_irq_handler(struct fts_ts_data *ts_data)
 	int ret = 0;
 	struct fts_fwdbg *dbg = fts_fwdbg_data;
 	u8 reg_addr = 0x01;
-	u8 fod_state = 0xFF;
 	u8 *touch_buf = NULL;
 	u32 touch_size = 0;
 
@@ -1101,21 +1100,6 @@ int fts_fwdbg_irq_handler(struct fts_ts_data *ts_data)
 		    FTS_RETVAL_IGNORE_TOUCHES) {
 			ret = TOUCH_IGNORE;
 			goto ret_irq;
-		}
-	}
-#endif
-
-#if FTS_FOD_EN
-	if (ts_data->fod_mode) {
-		fts_read_reg(FTS_REG_FOD_MODE_EN, &fod_state);
-		if (fod_state == FTS_VAL_FOD_ENABLE) {
-			if (fts_fod_readdata(ts_data) ==
-			    FTS_RETVAL_IGNORE_TOUCHES) {
-				fts_fod_report_key(ts_data);
-				if (ts_data->suspended) {
-					return TOUCH_IGNORE;
-				}
-			}
 		}
 	}
 #endif

@@ -121,7 +121,6 @@
 #define FTS_MAX_BUS_BUF 4096
 
 #define FTS_MAX_CUSTOMER_INFO 32
-#define FTS_FOD_BUF_LEN 9
 
 #define FTS_RETVAL_IGNORE_TOUCHES 1
 
@@ -149,7 +148,6 @@
 #define FTS_PEN_HIRES_X 10
 
 #define FTS_HI_RES_X_MAX 16
-#define KEY_GESTURE_FOD 0xF9
 
 /* If need read customer info when probing, max:FTS_MAX_CUSTOMER_INFO */
 #define FTS_READ_CUSTOMER_INFO 0
@@ -256,7 +254,6 @@ struct fts_ts_data {
 	bool prc_support;
 	bool prc_mode;
 	bool esd_support;
-	int fod_mode;
 	bool diff_mode;
 	bool proximity_mode;
 	//bool fhp_mode;
@@ -266,10 +263,6 @@ struct fts_ts_data {
 	bool gesture_support; /* gesture enable or disable, default: disable */
 	u8 gesture_bmode; /*gesture buffer mode*/
 
-	int fod_fp_down;
-	int fp_down_report;
-	u16 fp_x;
-	u16 fp_y;
 	bool pocket_mode;
 	bool game_mode;
 	int edgepalm_value;
@@ -374,12 +367,6 @@ void fts_gesture_recovery(struct fts_ts_data *ts_data);
 int fts_gesture_readdata(struct fts_ts_data *ts_data, u8 *data);
 int fts_gesture_suspend(struct fts_ts_data *ts_data);
 int fts_gesture_resume(struct fts_ts_data *ts_data);
-
-#if FTS_FOD_EN
-void fts_fod_enable(int enable);
-int fts_fod_readdata(struct fts_ts_data *ts_data);
-void fts_fod_report_key(struct fts_ts_data *ts_data);
-#endif
 
 /* Apk and functions */
 int fts_create_apk_debug_channel(struct fts_ts_data *);

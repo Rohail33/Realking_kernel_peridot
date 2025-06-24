@@ -515,8 +515,7 @@ static ssize_t fts_pocket_mode_store(struct file *filp, const char __user *ubuf,
 		return -EFAULT;
 	if (kstrtouint(buf, 0, &tmp))
 		return -EINVAL;
-	if ((!ts_data->gesture_support) &&
-	    (ts_data->fod_mode == FTS_FOD_DISABLE)) {
+	if (!ts_data->gesture_support) {
 		FTS_INFO("In sleep mode,not operation pocket mode!");
 		return count;
 	}
@@ -709,59 +708,6 @@ static ssize_t fts_gesture_store(struct file *filp, const char __user *ubuf,
 static int fts_gesture_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, fts_gesture_show, NULL);
-}
-
-static int fts_fod_proc_show(struct seq_file *s, void *unused)
-{
-	u8 val = 0;
-	struct fts_ts_data *ts_data = fts_data;
-
-	mutex_lock(&ts_data->input_dev->mutex);
-	fts_read_reg(FTS_REG_FOD_MODE_EN, &val);
-
-	seq_printf(s, "Fod Mode:%d\n", ts_data->fod_mode);
-	seq_printf(s, "Reg(0xCF)=%d\n", val);
-	mutex_unlock(&ts_data->input_dev->mutex);
-
-	return 0;
-}
-
-static ssize_t fts_fod_proc_store(struct file *filp, const char __user *ubuf,
-				  size_t count, loff_t *ppos)
-{
-	char buf[20];
-	u32 tmp;
-	struct fts_ts_data *ts_data = fts_data;
-
-	memset(buf, 0x00, sizeof(buf));
-	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
-		return -EFAULT;
-	if (kstrtouint(buf, 0, &tmp))
-		return -EINVAL;
-
-	mutex_lock(&ts_data->input_dev->mutex);
-	if (tmp == 1) {
-		FTS_INFO("enable fod\n");
-		fts_fod_enable(FTS_FOD_ENABLE);
-	} else if (tmp == 2) { //disable fod when input KEY_GESTURE_FOD_UP event
-		FTS_INFO("unlock fod\n");
-		fts_fod_enable(FTS_FOD_UNLOCK);
-	} else if (tmp == 0) {
-		FTS_INFO("disable fod\n");
-		fts_fod_enable(FTS_FOD_DISABLE);
-	} else if (tmp == 3) { //disable fod but not power off when suspend
-		fts_fod_enable(3);
-	} else {
-		FTS_INFO("wrong value\n");
-	}
-	mutex_unlock(&ts_data->input_dev->mutex);
-
-	return count;
-}
-
-static int fts_fod_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, fts_fod_proc_show, NULL);
 }
 
 static int fts_diff_mode_show(struct seq_file *s, void *unused)
@@ -962,14 +908,6 @@ static const struct proc_ops fts_gesture_point_fops = {
 static const struct proc_ops fts_gesture_fops = {
 	.proc_open = fts_gesture_open,
 	.proc_write = fts_gesture_store,
-	.proc_read = seq_read,
-	.proc_lseek = seq_lseek,
-	.proc_release = single_release,
-};
-
-static const struct proc_ops fts_fod_fops = {
-	.proc_open = fts_fod_proc_open,
-	.proc_write = fts_fod_proc_store,
 	.proc_read = seq_read,
 	.proc_lseek = seq_lseek,
 	.proc_release = single_release,
@@ -1755,46 +1693,6 @@ static ssize_t fts_tamode_store(struct device *dev,
 	return count;
 }
 
-#if FTS_FOD_EN
-/* fts_fod_mode node */
-static ssize_t fts_fod_show(struct device *dev, struct device_attribute *attr,
-			    char *buf)
-{
-	int count = 0;
-	u8 val = 0;
-	struct fts_ts_data *ts_data = dev_get_drvdata(dev);
-
-	mutex_lock(&ts_data->input_dev->mutex);
-	fts_read_reg(FTS_REG_FOD_MODE_EN, &val);
-	count = snprintf(buf, PAGE_SIZE, "FOD Mode:%s\n",
-			 ts_data->fod_mode ? "On" : "Off");
-	count += snprintf(buf + count, PAGE_SIZE, "Reg(0xCF)=%d\n", val);
-	mutex_unlock(&ts_data->input_dev->mutex);
-
-	return count;
-}
-
-static ssize_t fts_fod_store(struct device *dev, struct device_attribute *attr,
-			     const char *buf, size_t count)
-{
-	struct fts_ts_data *ts_data = dev_get_drvdata(dev);
-
-	mutex_lock(&ts_data->input_dev->mutex);
-	if (FTS_SYSFS_ECHO_ON(buf)) {
-		fts_fod_enable(FTS_FOD_ENABLE);
-	} else if (FTS_SYSFS_ECHO_OFF(buf)) {
-		fts_fod_enable(FTS_FOD_DISABLE);
-	} else if (FTS_SYSFS_ECHO_UNLOCK(buf)) {
-		fts_fod_enable(FTS_FOD_UNLOCK);
-	} else {
-		FTS_ERROR("wrong fod echo num\n");
-	}
-	mutex_unlock(&ts_data->input_dev->mutex);
-
-	return count;
-}
-#endif
-
 /* get the fw version  example:cat fw_version */
 static DEVICE_ATTR(fts_fw_version, S_IRUGO | S_IWUSR, fts_tpfwver_show,
 		   fts_tpfwver_store);
@@ -1837,10 +1735,6 @@ static DEVICE_ATTR(fts_touch_size, S_IRUGO | S_IWUSR, fts_touchsize_show,
 		   fts_touchsize_store);
 static DEVICE_ATTR(fts_ta_mode, S_IRUGO | S_IWUSR, fts_tamode_show,
 		   fts_tamode_store);
-#if FTS_FOD_EN
-static DEVICE_ATTR(fts_fod_mode, S_IRUGO | S_IWUSR, fts_fod_show,
-		   fts_fod_store);
-#endif
 
 /* add your attr in here*/
 static struct attribute *fts_attributes[] = { &dev_attr_fts_fw_version.attr,
@@ -1857,9 +1751,6 @@ static struct attribute *fts_attributes[] = { &dev_attr_fts_fw_version.attr,
 					      &dev_attr_fts_pen.attr,
 					      &dev_attr_fts_touch_size.attr,
 					      &dev_attr_fts_ta_mode.attr,
-#if FTS_FOD_EN
-					      &dev_attr_fts_fod_mode.attr,
-#endif
 					      NULL };
 
 static struct attribute_group fts_attribute_group = { .attrs = fts_attributes };
@@ -1894,8 +1785,6 @@ int fts_procfs_init(void)
 		remove_proc_subtree("touchpanel", NULL);
 		return -ENOMEM;
 	} else {
-		proc_create_data("fod_mode", 0664, proc_touchpanel,
-				 &fts_fod_fops, NULL);
 		proc_create_data("gesture_mode", 0664, proc_touchpanel,
 				 &fts_gesture_fops, NULL);
 		proc_create_data("gesture_code", 0664, proc_touchpanel,

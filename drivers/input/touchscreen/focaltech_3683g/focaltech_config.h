@@ -253,12 +253,6 @@ extern long int FTS_CHIP_TYPE;
 #define FTS_PSENSOR_EN 0
 
 /*
- * FOD function enable
- * default: disable
- */
-#define FTS_FOD_EN 1
-
-/*
  * ESD check & protection
  * default: disable
  */

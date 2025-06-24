@@ -73,10 +73,6 @@
 *****************************************************************************/
 struct fts_ts_data *fts_data;
 
-#if FTS_FOD_EN
-static int fts_fod_recovery(struct fts_ts_data *ts_data);
-#endif
-
 /*****************************************************************************
 * Static function prototypes
 *****************************************************************************/
@@ -156,9 +152,6 @@ void fts_tp_state_recovery(struct fts_ts_data *ts_data)
 		fts_proximity_recovery(ts_data);
 		return;
 	}
-#endif
-#if FTS_FOD_EN
-	fts_fod_recovery(ts_data);
 #endif
 	fts_gesture_recovery(ts_data);
 }
@@ -542,164 +535,6 @@ static int fts_read_customer_information(struct fts_ts_data *ts_data)
 	FTS_INFO("customer info:%s", ts_data->customer_info);
 	return 0;
 }
-#endif
-
-#if FTS_FOD_EN
-static void fts_fod_set_reg(int value)
-{
-	int i = 0;
-	u8 fod_val = value ? FTS_VAL_FOD_ENABLE : DISABLE;
-	u8 regval = 0xFF;
-
-	for (i = 0; i < FTS_MAX_RETRIES_WRITEREG; i++) {
-		fts_read_reg(FTS_REG_FOD_MODE_EN, &regval);
-		if (regval == fod_val)
-			break;
-		fts_write_reg(FTS_REG_FOD_MODE_EN, fod_val);
-		fts_msleep(1);
-	}
-
-	if (i >= FTS_MAX_RETRIES_WRITEREG)
-		FTS_ERROR("set fod mode to %x failed,reg_val:%x", fod_val,
-			  regval);
-	else if (i > 0)
-		FTS_INFO("set fod mode to %x successfully", fod_val);
-}
-
-void fts_fod_enable(int enable)
-{
-	struct fts_ts_data *ts_data = fts_data;
-
-	ts_data->fod_fp_down = false;
-	ts_data->fod_mode = enable;
-	if (enable == FTS_FOD_ENABLE) {
-		FTS_INFO("Fod enable,fod_mode = %d\n", ts_data->fod_mode);
-		fts_fod_set_reg(FTS_VAL_FOD_ENABLE);
-	} else if (enable == FTS_FOD_DISABLE) {
-		FTS_INFO("Fod disable\n");
-		fts_fod_set_reg(DISABLE);
-	} else if (enable == FTS_FOD_UNLOCK) {
-		FTS_INFO("Fod unlock\n");
-	} else if (enable == 3) {
-		FTS_INFO("disable fod but not power off,fod_mode = %d\n",
-			 ts_data->fod_mode);
-		fts_fod_set_reg(DISABLE);
-	} else {
-		FTS_INFO("wrong val\n");
-	}
-}
-
-/*****************************************************************************
-* Name: fts_fod_readdata
-* Brief: read fod value from TP, check whether having FOD event or not,
-*        and report the state to host if need.
-*
-* Input: ts_data
-* Output:
-* Return: return negative code if error occurs,return 0 or 1 if success.
-*         return 0 if continue report finger touches.
-*         return 1(FTS_RETVAL_IGNORE_TOUCHES) if you want to ingore this
-*         finger reporting, As default, the following situation will report 1:
-*               a.System in suspend state, now not handle gesture.
-*****************************************************************************/
-int fts_fod_readdata(struct fts_ts_data *ts_data)
-{
-	int ret = 0;
-	int fod_x = 0;
-	int fod_y = 0;
-	int fod_pointid = 0;
-	int fod_down = 0;
-	u8 fod_val[FTS_FOD_BUF_LEN] = { 0 };
-	u8 fod_cmd = FTS_REG_FOD_DATA;
-
-	ret = fts_read(&fod_cmd, 1, fod_val, FTS_FOD_BUF_LEN);
-	if (ret < 0) {
-		FTS_ERROR("read fod data failed,ret=%d", ret);
-		return ret;
-	}
-
-	if (fod_val[1] == 0x26) {
-		fod_pointid = fod_val[0];
-		fod_x = (fod_val[4] << 8) + fod_val[5];
-		fod_y = (fod_val[6] << 8) + fod_val[7];
-		ts_data->fp_x = fod_x;
-		ts_data->fp_y = fod_y;
-		fod_down = (fod_val[8] == 0) ? 1 : 0;
-		/*
-        FTS_DEBUG("FOD data:%x %x %x %x[%x,%x][%x]", fod_val[0], fod_val[1],
-                 fod_val[2], fod_val[3], fod_x, fod_y, fod_val[8]);
-        */
-		if (fod_down) {
-			/* FOD down, need do something to tell host */
-			ts_data->fod_fp_down = true;
-		} else {
-			/* FOD up, need do something to tell host */
-			ts_data->fod_fp_down = false;
-		}
-		ret = 1;
-		//ret = (ts_data->suspended) ? FTS_RETVAL_IGNORE_TOUCHES : 0;
-	} else {
-		ret = 0;
-	}
-
-	return ret;
-}
-
-static int fts_fod_recovery(struct fts_ts_data *ts_data)
-{
-	if (ts_data->fod_mode) {
-		fts_fod_set_reg(FTS_VAL_FOD_ENABLE);
-	}
-	return 0;
-}
-
-/*****************************************************************************
-* Name: fts_fod_checkdown
-* Brief: check fod down event is triggered, it's used to reset TP or not when
-*        resuming.
-*
-* Input: ts_data
-* Output:
-* Return: return 1 if having fod down event, or else return 0
-*****************************************************************************/
-static int fts_fod_checkdown(struct fts_ts_data *ts_data)
-{
-	return (ts_data->fod_mode && ts_data->fod_fp_down);
-}
-
-__attribute__((unused)) static int fts_fod_suspend(struct fts_ts_data *ts_data)
-{
-	ts_data->fod_fp_down = false;
-	fts_fod_set_reg(FTS_VAL_FOD_ENABLE);
-	return 0;
-}
-
-__attribute__((unused)) static int fts_fod_resume(struct fts_ts_data *ts_data)
-{
-	if (!fts_fod_checkdown(ts_data))
-		fts_fod_set_reg(FTS_VAL_FOD_ENABLE);
-	ts_data->fod_fp_down = false;
-	return 0;
-}
-
-void fts_fod_report_key(struct fts_ts_data *ts_data)
-{
-	if ((ts_data->fod_fp_down) && (!ts_data->fp_down_report)) {
-		ts_data->fp_down_report = 1;
-		input_report_key(ts_data->input_dev, KEY_GESTURE_FOD, 1);
-		input_sync(ts_data->input_dev);
-		FTS_DEBUG("KEY_GESTURE_FOD, 1\n");
-	} else if ((!ts_data->fod_fp_down) && (ts_data->fp_down_report)) {
-		ts_data->fp_down_report = 0;
-		input_report_key(ts_data->input_dev, KEY_GESTURE_FOD, 0);
-		input_sync(ts_data->input_dev);
-		FTS_DEBUG("KEY_GESTURE_FOD, 0\n");
-		if (ts_data->fod_mode == FTS_FOD_UNLOCK) {
-			fts_fod_set_reg(DISABLE);
-		}
-	}
-}
-
 #endif
 
 /*****************************************************************************
@@ -1308,7 +1143,6 @@ static int fts_read_touchdata_i2c(struct fts_ts_data *ts_data, u8 *buf)
 static int fts_read_parse_touchdata(struct fts_ts_data *ts_data, u8 *touch_buf)
 {
 	int ret = 0;
-	u8 fod_state = 0xFF;
 
 	memset(touch_buf, 0xFF, FTS_MAX_TOUCH_BUF);
 	ts_data->ta_size = ts_data->touch_size;
@@ -1342,21 +1176,6 @@ static int fts_read_parse_touchdata(struct fts_ts_data *ts_data, u8 *touch_buf)
 		if (fts_proximity_readdata(ts_data) ==
 		    FTS_RETVAL_IGNORE_TOUCHES)
 			return TOUCH_IGNORE;
-	}
-#endif
-
-#if FTS_FOD_EN
-	if (ts_data->fod_mode) {
-		fts_read_reg(FTS_REG_FOD_MODE_EN, &fod_state);
-		if (fod_state == FTS_VAL_FOD_ENABLE) {
-			if (fts_fod_readdata(ts_data) ==
-			    FTS_RETVAL_IGNORE_TOUCHES) {
-				fts_fod_report_key(ts_data);
-				if (ts_data->suspended) {
-					return TOUCH_IGNORE;
-				}
-			}
-		}
 	}
 #endif
 
@@ -2233,7 +2052,7 @@ static int fts_ts_suspend(struct device *dev)
 	}
 #endif
 
-	if (ts_data->gesture_support || ts_data->fod_mode) {
+	if (ts_data->gesture_support) {
 		fts_gesture_suspend(ts_data);
 		ts_data->need_work_in_suspend = true;
 	}
@@ -2289,22 +2108,15 @@ static int fts_ts_resume(struct device *dev)
 #endif
 
 	if (ts_data->need_work_in_suspend) {
-#if FTS_FOD_EN
-		if ((!ts_data->ic_info.is_incell) &&
-		    (!fts_fod_checkdown(ts_data))) {
-			fts_reset_proc(ts_data, false, FTS_DELAY_RESUME_RESET);
-		}
-#else
 		if (!ts_data->ic_info.is_incell) {
 			fts_reset_proc(ts_data, false, FTS_DELAY_RESUME_RESET);
 		}
-#endif
 	} else {
 		fts_power_resume(ts_data);
 	}
 
 	fts_enter_normal_fw();
-	if (ts_data->gesture_support || ts_data->fod_mode) {
+	if (ts_data->gesture_support) {
 		fts_gesture_resume(ts_data);
 	}
 
@@ -2595,7 +2407,6 @@ static void fts_init_xiaomi_touchfeature(struct fts_ts_data *ts_data)
 	xiaomi_touch_interfaces.getModeAll = fts_get_mode_all;
 	fts_init_touchmode_data(ts_data);
 
-	ts_data->pdata->fod_status = -1;
 	ts_data->gesture_support = 1;
 
 	xiaomitouch_register_modedata(0, &xiaomi_touch_interfaces);
