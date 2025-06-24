@@ -178,6 +178,7 @@ struct fts_ts_platform_data {
 	u32 y_min;
 	u32 max_touch_number;
 	u32 super_resolution_factors;
+	int fod_status;	
 };
 
 struct ts_event {
@@ -308,6 +309,7 @@ struct fts_ts_data {
 enum GESTURE_MODE_TYPE {
     GESTURE_DOUBLETAP = 0,
     GESTURE_SINGLETAP = 1,
+    GESTURE_FOD  = 2,
 };
 
 enum _FTS_BUS_TYPE {
@@ -373,6 +375,8 @@ void fts_gesture_recovery(struct fts_ts_data *ts_data);
 int fts_gesture_readdata(struct fts_ts_data *ts_data, u8 *data);
 int fts_gesture_suspend(struct fts_ts_data *ts_data);
 int fts_gesture_resume(struct fts_ts_data *ts_data);
+int fts_gesture_reg_write(u8 mask, bool enable);
+int fts_fod_reg_write(u8 mask, bool enable);
 
 /* Apk and functions */
 int fts_create_apk_debug_channel(struct fts_ts_data *);

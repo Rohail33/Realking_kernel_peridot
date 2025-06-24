@@ -73,6 +73,8 @@
 *****************************************************************************/
 struct fts_ts_data *fts_data;
 
+static int fts_fod_recovery(struct fts_ts_data *ts_data);
+
 /*****************************************************************************
 * Static function prototypes
 *****************************************************************************/
@@ -153,6 +155,7 @@ void fts_tp_state_recovery(struct fts_ts_data *ts_data)
 		return;
 	}
 #endif
+	fts_fod_recovery(ts_data);
 	fts_gesture_recovery(ts_data);
 }
 
@@ -537,6 +540,33 @@ static int fts_read_customer_information(struct fts_ts_data *ts_data)
 }
 #endif
 
+static void fts_fod_set_reg(int value)
+{
+	int i = 0;
+	u8 fod_val = value ? FTS_REG_GESTURE_FOD_ON : DISABLE;
+	u8 regval = 0xFF;
+
+	for (i = 0; i < FTS_MAX_RETRIES_WRITEREG; i++) {
+		fts_read_reg(FTS_REG_FOD_MODE_EN, &regval);
+		if (regval == fod_val)
+			break;
+		fts_write_reg(FTS_REG_FOD_MODE_EN, fod_val);
+		fts_msleep(1);
+	}
+
+	if (i >= FTS_MAX_RETRIES_WRITEREG)
+		FTS_ERROR("set fod mode to %x failed,reg_val:%x", fod_val,
+			  regval);
+	else if (i > 0)
+		FTS_INFO("set fod mode to %x successfully", fod_val);
+}
+
+static int fts_fod_recovery(struct fts_ts_data *ts_data)
+{
+	fts_fod_set_reg(true);
+	return 0;
+}
+
 /*****************************************************************************
 *  Reprot related
 *****************************************************************************/
@@ -720,6 +750,7 @@ static int fts_input_report_b(struct fts_ts_data *ts_data,
 		if (ts_data->touch_points && (ts_data->log_level >= 1))
 			FTS_DEBUG("[B]Points All Up!");
 		input_report_key(input_dev, BTN_TOUCH, 0);
+		update_fod_press_status(0);
 	}
 
 	ts_data->touch_points = touch_down_point_cur;
@@ -2052,6 +2083,10 @@ static int fts_ts_suspend(struct device *dev)
 	}
 #endif
 
+	if ((ts_data->fod_status != -1 && ts_data->fod_status != 100)) {
+		fts_fod_set_reg(true);
+	}
+
 	if (ts_data->gesture_support) {
 		fts_gesture_suspend(ts_data);
 		ts_data->need_work_in_suspend = true;
@@ -2375,6 +2410,10 @@ static int fts_set_cur_value(int mode, int value)
 	}
 	if (mode == Touch_Singletap_Gesture && value >= 0) {
 		fts_update_gesture_state(fts_data, GESTURE_SINGLETAP, value != 0 ? true : false);
+		return 0;
+	}
+	if (mode == Touch_Fod_Longpress_Gesture && value >= 0) {
+		fts_update_gesture_state(fts_data, GESTURE_FOD, value != 0 ? true : false);
 		return 0;
 	}
 	if (mode == THP_FOD_DOWNUP_CTL && value >= 0) {

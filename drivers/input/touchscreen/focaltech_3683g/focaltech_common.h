@@ -125,6 +125,9 @@
 #define FTS_SYSFS_ECHO_OFF(buf) (buf[0] == '0')
 #define FTS_SYSFS_ECHO_UNLOCK(buf) (buf[0] == '2')
 
+#define FTS_REG_FOD_MODE_EN 0xCF
+#define FTS_REG_GESTURE_FOD_ON 0x02
+
 #define kfree_safe(pbuf)                                                       \
 	do {                                                                   \
 		if (pbuf) {                                                    \
