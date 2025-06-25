@@ -33,6 +33,7 @@ AUDIO_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/q6_notifier_dlkm.ko\
 	$(KERNEL_MODULES_OUT)/cs35l43_dlkm.ko \
 	$(KERNEL_MODULES_OUT)/tlv320aic3x_dlkm.ko \
 	$(KERNEL_MODULES_OUT)/aw882xx_dlkm.ko \
+        $(KERNEL_MODULES_OUT)/fs19xx_dlkm.ko \
 	$(KERNEL_MODULES_OUT)/tef668x_dlkm.ko \
 	$(KERNEL_MODULES_OUT)/machine_dlkm.ko
 ifneq ($(call is-board-platform-in-list,bengal holi blair), true)

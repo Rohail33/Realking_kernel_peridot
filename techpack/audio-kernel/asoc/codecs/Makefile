@@ -192,8 +192,9 @@ ifeq ($(KERNEL_BUILD), 1)
 	obj-y	+= cs35l41/
 	obj-y	+= cs35l43/
 	obj-y	+= tlv320aic3x/
-	obj-y	+= aw882xx/
+	obj-y	+= pa_combine/
 	obj-y	+= tef668x/
+  obj-y	+= fs19xx/
 endif
 # Module information used by KBuild framework
 obj-$(CONFIG_WCD9XXX_CODEC_CORE) += wcd_core_dlkm.o
