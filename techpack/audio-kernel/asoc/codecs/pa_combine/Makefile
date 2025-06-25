@@ -5,25 +5,30 @@ UAPI_INC :=	-I$(AUDIO_ROOT)/include/$(UAPI_DIR)
 ############ COMMON ############
 COMMON_DIR :=	include
 COMMON_INC :=	-I$(AUDIO_ROOT)/$(COMMON_DIR)
-AW_INC    :=   -I$(AUDIO_ROOT)/asoc/codecs/aw882xx/inc
+AW_INC    :=   -I$(AUDIO_ROOT)/asoc/codecs/pa_combine/inc/aw882xx/
+FS_INC    :=   -I$(AUDIO_ROOT)/asoc/codecs/pa_combine/inc/fs19xx/
 
-# for AW882XX Amplifer
+# for aw882xx/fs19xx combine adaption
 ifdef CONFIG_SND_SOC_AW882XX
-	AW882XX_OBJS += src/aw882xx.o
-	AW882XX_OBJS += src/aw882xx_bin_parse.o
-	AW882XX_OBJS += src/aw882xx_calib.o
-	AW882XX_OBJS += src/aw882xx_device.o
-	AW882XX_OBJS += src/aw882xx_dsp.o
-	AW882XX_OBJS += src/aw882xx_init.o
-	AW882XX_OBJS += src/aw882xx_monitor.o
-	AW882XX_OBJS += src/aw882xx_spin.o
+	AW882XX_OBJS += src/aw882xx/aw882xx.o
+	AW882XX_OBJS += src/aw882xx/aw882xx_bin_parse.o
+	AW882XX_OBJS += src/aw882xx/aw882xx_calib.o
+	AW882XX_OBJS += src/aw882xx/aw882xx_device.o
+	AW882XX_OBJS += src/aw882xx/aw882xx_dsp.o
+	AW882XX_OBJS += src/aw882xx/aw882xx_init.o
+	AW882XX_OBJS += src/aw882xx/aw882xx_monitor.o
+	AW882XX_OBJS += src/aw882xx/aw882xx_spin.o
+	AW882XX_OBJS += src/fs19xx/fsm_core.o
+	AW882XX_OBJS += src/fs19xx/fs1958.o
+	AW882XX_OBJS += src/fs19xx/fsm_i2c.o
 endif
 
 LINUX_INC += -Iinclude/linux
 
 INCS +=	$(COMMON_INC) \
 	$(UAPI_INC) \
-	$(AW_INC)
+	$(AW_INC) \
+	$(FS_INC)
 
 EXTRA_CFLAGS += $(INCS)
 
