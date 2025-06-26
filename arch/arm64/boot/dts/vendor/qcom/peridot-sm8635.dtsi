@@ -196,11 +196,11 @@
 	pinctrl-1 = <&mi_ts_spi_suspend>, <&mi_ts_spi_cs_suspend>;
 	xiaomi_touch@0 {
 		status = "ok";
-		compatible = "xiaomi,peridot-spi", "focaltech,n16t-3683g-spi";
+		compatible = "goodix,gt9916R", "focaltech,n16t-3683g-spi";
 		reg = <0x0>;
 		spi-max-frequency = <15000000>;
 		interrupt-parent = <&tlmm>;
-		interrupts = <129 0x2008>;
+		interrupts = <129 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend";
 		pinctrl-0 = <&mi_ts_int_init &mi_ts_rst_init>;
 		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
@@ -211,17 +211,20 @@
 		/* parameters for 1st supplier goodix */
 		goodix,avdd-name = "avdd";
 		goodix,iovdd-name = "vdd";
-		goodix,irq-gpio = <&tlmm 129 0x2008>;
-		goodix,reset-gpio = <&tlmm 128 0x00>;
-		goodix,irq-flags = <2>;
+		goodix,touch-type = "primary";
+		goodix,irq-gpio = <&tlmm 129 GPIO_TRANSITORY>;
+		goodix,reset-gpio = <&tlmm 128 GPIO_ACTIVE_HIGH>;
+		goodix,irq-flags = <IRQ_TYPE_EDGE_FALLING>;
 		goodix,panel-max-x = <19520>;
 		goodix,panel-max-y = <43392>;
 		goodix,panel-max-w = <255>;
 		goodix,panel-max-p = <4096>;
 		goodix,super-resolution-factor = <16>;
-		goodix,firmware-name = "goodix_firmware_peridot_csot";
-		goodix,config-name = "goodix_cfg_group_peridot_csot";
-		goodix,touch-expert-array = <2 3 2 2
+		goodix,firmware-name = "goodix_firmware_peridot_csot.bin";
+		goodix,config-name = "goodix_cfg_group_peridot_csot.bin";
+		goodix,firmware-name-second = "goodix_firmware_peridot_csot_second.bin";
+		goodix,config-name-second = "goodix_cfg_group_peridot_csot_second.bin";
+                goodix,touch-expert-array = <2 3 2 2
 					     4 3 3 2
 					     3 3 4 2>;
 

@@ -2605,7 +2605,7 @@
 
 			xiaomi_touch@0 {
 				status = "ok";
-				compatible = "xiaomi,peridot-spi\0focaltech,n16t-3683g-spi";
+				compatible = "goodix,gt9916R\0focaltech,n16t-3683g-spi";
 				reg = <0x00>;
 				spi-max-frequency = <19000000>;
 				interrupt-parent = <0xffffffff>;
@@ -2617,6 +2617,7 @@
 				avdd-supply = <0xffffffff>;
 				goodix,avdd-name = "avdd";
 				goodix,iovdd-name = "vdd";
+                                goodix,touch-type = "primary";
 				goodix,irq-gpio = <0xffffffff 0x81 0x2008>;
 				goodix,reset-gpio = <0xffffffff 0x80 0x00>;
 				goodix,irq-flags = <0x02>;
@@ -2625,10 +2626,10 @@
 				goodix,panel-max-w = <0xff>;
 				goodix,panel-max-p = <0x1000>;
 				goodix,super-resolution-factor = <0x10>;
-				goodix,firmware-name = "goodix_firmware_peridot_csot";
-				goodix,config-name = "goodix_cfg_group_peridot_csot";
-				goodix,firmware-name-second = "goodix_firmware_peridot_csot_second";
-				goodix,config-name-second = "goodix_cfg_group_peridot_csot_second";
+				goodix,firmware-name = "goodix_firmware_peridot_csot.bin";
+				goodix,config-name = "goodix_cfg_group_peridot_csot.bin";
+				goodix,firmware-name-second = "goodix_firmware_peridot_csot_second.bin";
+				goodix,config-name-second = "goodix_cfg_group_peridot_csot_second.bin";
 				goodix,touch-expert-array = <0x02 0x03 0x02 0x02 0x04 0x03 0x03 0x02 0x03 0x03 0x04 0x02>;
 				focaltech,avdd-name = "avdd";
 				focaltech,iovdd-name = "vdd";
