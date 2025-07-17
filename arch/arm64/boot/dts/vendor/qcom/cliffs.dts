@@ -11770,12 +11770,12 @@
 
 				qcom,gpu-pwrlevel@0 {
 					reg = <0>;
-					qcom,acd-level = <0x88285ffd>;
+					qcom,acd-level = <0x88275ffd>;
 					qcom,bus-max = <15>;
 					qcom,bus-min = <9>;
 					qcom,bus-freq = <15>;
-					qcom,level = <384>;
-					qcom,gpu-freq = <1114000000>;
+					qcom,level = <368>;
+					qcom,gpu-freq = <1050000000>;
 				};
 
 				qcom,gpu-pwrlevel@1 {
@@ -11880,12 +11880,12 @@
 
 				qcom,gpu-pwrlevel@11 {
 					reg = <11>;
-					qcom,acd-level = <0x882f5ffd>;
+					qcom,acd-level = <0x882e5ffd>;
 					qcom,bus-max = <3>;
 					qcom,bus-min = <1>;
 					qcom,bus-freq = <1>;
 					qcom,level = <4>;
-					qcom,gpu-freq = <100000000>;
+					qcom,gpu-freq = <150000000>;
 				};
 			};
 		};
