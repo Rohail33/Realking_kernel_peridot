@@ -2055,27 +2055,42 @@ static int fs19xx_read_chipid(struct aw882xx *aw882xx)
 	unsigned int cnt = 0;
 	unsigned int reg_value = 0;
 
+	// Retry loop: try reading the chip ID multiple times
 	while (cnt < AW_READ_CHIPID_RETRIES) {
 		ret = aw882xx_i2c_read(aw882xx, FS19XX_CHIP_ID_REG, &reg_value);
-		if (ret < 0) {
-			aw_dev_err(aw882xx->dev, "failed to read FS REG_ID: %d", ret);
-			return -EIO;
+		if (ret == 0) {
+			switch (reg_value) {
+			case FS1945_CHIP_ID:
+				aw_dev_info(aw882xx->dev, "fs1945 detected");
+				return 0;
+			default:
+				aw_dev_info(aw882xx->dev, "unsupported device revision (0x%x)",
+						reg_value);
+				break;
+			}
+		} else {
+			aw_dev_err(aw882xx->dev, "i2c_read retry %d error = %d", cnt, ret);
 		}
-		aw_dev_err(aw882xx->dev, "failed to read REG_ID: %d", ret);
-		switch (reg_value) {
-		case FS1945_CHIP_ID:
-			aw_dev_info(aw882xx->dev, "fs1945 detected");
-			return 0;
 
-		default:
-			aw_dev_info(aw882xx->dev, "unsupported device revision (0x%x)",
-					reg_value);
-			break;
-		}
 		cnt++;
-
 		msleep(AW_READ_CHIPID_RETRY_DELAY);
 	}
+
+	// All retries failed – print error and wait 3 seconds before final attempt
+	aw_dev_err(aw882xx->dev,
+		"retry %d times, still error, try usleep 3s, i2c_read error = %d",
+		AW_READ_CHIPID_RETRIES, ret);
+
+	usleep_range(3000000, 3100000);  // Final fallback delay: 3s
+
+	// Try one final time after delay
+	ret = aw882xx_i2c_read(aw882xx, FS19XX_CHIP_ID_REG, &reg_value);
+	if (ret == 0 && reg_value == FS1945_CHIP_ID) {
+		aw_dev_info(aw882xx->dev, "fs1945 detected after fallback delay");
+		return 0;
+	}
+
+	aw_dev_err(aw882xx->dev, "failed to read FS REG_ID: %d", ret);
 	return -EINVAL;
 }
 
