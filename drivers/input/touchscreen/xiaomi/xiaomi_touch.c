@@ -1101,14 +1101,19 @@ int update_fod_press_status(int value)
 {
 	struct xiaomi_touch *dev = NULL;
 
-	mutex_lock(&xiaomi_touch_dev.fod_press_status_mutex);
-
 	if (!touch_pdata) {
-		mutex_unlock(&xiaomi_touch_dev.fod_press_status_mutex);
+		pr_err("touch_pdata is NULL in update_fod_press_status\n");
 		return -ENODEV;
 	}
 
+	mutex_lock(&xiaomi_touch_dev.fod_press_status_mutex);
+
 	dev = touch_pdata->device;
+	if (!dev) {
+		mutex_unlock(&xiaomi_touch_dev.fod_press_status_mutex);
+		pr_err("device is NULL in update_fod_press_status\n");
+		return -ENODEV;
+	}
 
 	if (value != touch_pdata->fod_press_status_value) {
 		pr_info("%s: value:%d\n", __func__, value);
