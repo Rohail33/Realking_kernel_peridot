@@ -48,6 +48,10 @@
 
 #define SPI_DUMMY_BYTE 3
 #define SPI_HEADER_LENGTH 6 /*CRC*/
+
+#define DISP_ID1_DET  364   // GPIO 0x16C
+#define DISP_ID2_DET  379   // GPIO 0x17B
+
 /*****************************************************************************
 * Private enumerations, structures and unions using typedef
 *****************************************************************************/
@@ -609,15 +613,33 @@ static struct spi_driver fts_ts_spi_driver = {
 
 static int __init fts_ts_spi_init(void)
 {
-	int ret = 0;
+    int ret = 0;
+    int gpio_id1, gpio_id2;
 
-	FTS_FUNC_ENTER();
-	ret = spi_register_driver(&fts_ts_spi_driver);
-	if (ret < 0) {
-		FTS_ERROR("Focaltech touch screen driver init failed!");
-	}
-	FTS_FUNC_EXIT();
-	return ret;
+    /* Configure GPIOs as input */
+    gpio_direction_input(DISP_ID1_DET);
+    gpio_direction_input(DISP_ID2_DET);
+
+    /* Read values */
+    gpio_id1 = gpio_get_value(DISP_ID1_DET);
+    gpio_id2 = gpio_get_value(DISP_ID2_DET);
+
+    pr_info("gpio_id1 = %d, gpio_id2 = %d\n", gpio_id1, gpio_id2);
+
+    if ((gpio_id2 | (gpio_id1 << 1)) == 1) {
+        pr_info("TP is focaltech");
+    } else {
+        pr_info("TP is goodix");
+        return 0; /* Do not register fts driver */
+    }
+
+    FTS_FUNC_ENTER();
+    ret = spi_register_driver(&fts_ts_spi_driver);
+    if (ret != 0)
+        FTS_ERROR("Focaltech touch screen driver init failed!");
+    FTS_FUNC_EXIT();
+
+    return ret;
 }
 
 static void __exit fts_ts_spi_exit(void)

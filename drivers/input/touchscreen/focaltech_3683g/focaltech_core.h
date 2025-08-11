@@ -73,7 +73,7 @@
 /*****************************************************************************
 * Private constant and macro definitions using #define
 *****************************************************************************/
-#define FTS_DRIVER_NAME "fts_ts"
+#define FTS_DRIVER_NAME "focaltech_ts"
 
 #define FTS_MAX_POINTS_SUPPORT 10 /* constant value, can't be changed */
 #define FTS_MAX_KEYS 4
