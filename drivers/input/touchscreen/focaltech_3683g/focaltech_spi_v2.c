@@ -39,7 +39,7 @@
 /*****************************************************************************
 * Private constant and macro definitions using #define
 *****************************************************************************/
-#define SPI_RETRY_NUMBER 20
+#define SPI_RETRY_NUMBER 3
 #define CS_HIGH_DELAY 150 /* unit: us */
 
 #define DATA_CRC_EN 0x20
@@ -308,26 +308,19 @@ int fts_read(u8 *cmd, u32 cmdlen, u8 *data, u32 datalen)
 			if (ctrl & DATA_CRC_EN) {
 				ret = rdata_check(&rxbuf[dp], txlen - dp);
 				if (ret < 0) {
-					//FTS_DEBUG("data read(addr:%x) crc abnormal,retry:%d",
-					//          cmd[0], i);
+					FTS_DEBUG("data read(addr:%x) crc abnormal,retry:%d",
+					          cmd[0], i);
 					udelay(CS_HIGH_DELAY);
 					continue;
 				}
 			}
 			break;
-		} else if (ret == -13) {
-			FTS_ERROR(
-				"data read spi fail(addr:%x) status:%x,retry:%d,ret:%d",
-				cmd[0], rxbuf[3], i, ret);
-			ret = -EIO;
-			usleep_range(2000, 2000);
-		} else {
-			FTS_DEBUG(
-				"data read(addr:%x) status:%x,retry:%d,ret:%d",
-				cmd[0], rxbuf[3], i, ret);
-			ret = -EIO;
-			udelay(CS_HIGH_DELAY);
-		}
+                } else {
+                    FTS_DEBUG("data read(addr:%x) status:%x,retry:%d,ret:%d",
+                              cmd[0], rxbuf[3], i, ret);
+                    ret = -EIO;
+                    udelay(CS_HIGH_DELAY);
+                }
 	}
 
 	if (ret < 0) {
@@ -338,15 +331,11 @@ int fts_read(u8 *cmd, u32 cmdlen, u8 *data, u32 datalen)
 
 err_read:
 	if (txlen_need > FTS_MAX_BUS_BUF) {
-		if (txbuf) {
-			kfree(txbuf);
-			txbuf = NULL;
-		}
+		kfree(txbuf);
+		txbuf = NULL;
 
-		if (rxbuf) {
-			kfree(rxbuf);
-			rxbuf = NULL;
-		}
+		kfree(rxbuf);
+		rxbuf = NULL;
 	}
 
 	udelay(CS_HIGH_DELAY);
