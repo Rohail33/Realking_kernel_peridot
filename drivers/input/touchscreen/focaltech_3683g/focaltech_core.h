@@ -124,6 +124,8 @@
 
 #define FTS_RETVAL_IGNORE_TOUCHES 1
 
+#define FTS_MAX_STR_LABLE_LEN		40
+
 /*****************************************************************************
 *  Alternative mode (When something goes wrong, the modules may be able to solve the problem.)
 *****************************************************************************/
@@ -167,6 +169,10 @@ struct fts_ts_platform_data {
 	u32 irq_gpio_flags;
 	u32 reset_gpio;
 	u32 reset_gpio_flags;
+	int avdd_gpio;
+	int iovdd_gpio;
+	char avdd_name[FTS_MAX_STR_LABLE_LEN];
+	char iovdd_name[FTS_MAX_STR_LABLE_LEN];
 	bool have_key;
 	u32 key_number;
 	u32 keys[FTS_MAX_KEYS];
@@ -178,7 +184,7 @@ struct fts_ts_platform_data {
 	u32 y_min;
 	u32 max_touch_number;
 	u32 super_resolution_factors;
-	int fod_status;	
+	int fod_status;
 };
 
 struct ts_event {
@@ -289,8 +295,6 @@ struct fts_ts_data {
 	int bus_type;
 	int bus_ver;
 	char customer_info[FTS_MAX_CUSTOMER_INFO];
-	struct regulator *vci;
-	struct regulator *vddio;
 	struct regulator *avdd;
 	struct regulator *iovdd;
 #if FTS_PINCTRL_EN

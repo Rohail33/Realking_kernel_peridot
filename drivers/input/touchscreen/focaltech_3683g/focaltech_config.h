@@ -217,7 +217,7 @@
 /*
  * choose your ic chip type of focaltech
  */
-extern long int FTS_CHIP_TYPE;
+#define FTS_CHIP_TYPE   _FT3683G
 
 /******************* Enables *********************/
 /*********** 1 to enable, 0 to disable ***********/
