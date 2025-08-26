@@ -2084,6 +2084,10 @@ static int fts_ts_resume(struct device *dev)
 
 	update_fod_press_status(0);
 
+        /* If user enabled 480Hz, re-apply after screen-on */
+        if (ts_data->report_rate_status == 480)
+                fts_switch_report_rate(ts_data, true);
+
 	FTS_FUNC_EXIT();
 	return 0;
 }
@@ -2292,6 +2296,22 @@ static void fts_update_gesture_state(struct fts_ts_data *ts_data, int bit, bool 
 	mutex_unlock(&ts_data->input_dev->mutex);
 }
 
+/* support 480HZ report rate by interpolation */
+#define FTS_HIGH_RATE_CMD        0xC3
+int fts_switch_report_rate(struct fts_ts_data *cd, bool on)
+{
+        int ret = 0;
+
+        ret = fts_write_reg(FTS_HIGH_RATE_CMD, (on == true) ? 1 : 0);
+        if (ret < 0) {
+                FTS_ERROR("failed send report rate cmd, on = %d", on);
+                return -EINVAL;
+        } else {
+                FTS_INFO("reprot rate switch: %s", (on == true) ? "480HZ" : "240HZ");
+        }
+        return 0;
+}
+
 static int fts_get_mode_value(int mode, int value_type)
 {
 	int value = -1;
@@ -2306,6 +2326,7 @@ static int fts_get_mode_value(int mode, int value_type)
 
 static int fts_set_cur_value(int mode, int value)
 {
+        int ret;
 	if (!fts_data || mode < 0) {
 		FTS_ERROR(
 			"Error, fts_data is NULL or the parameter is incorrect");
@@ -2332,6 +2353,18 @@ static int fts_set_cur_value(int mode, int value)
 		update_fod_press_status(value != 0);
 		return 0;
 	}
+        if (mode == TOUCH_MODE_REPORT_RATE && value >= 0) {
+          FTS_INFO("Mode:TOUCH_MODE_REPORT_RATE  value=%d", value);
+          if (value != 0) {
+            fts_data->report_rate_status = 480;
+            ret = fts_write_reg(FTS_HIGH_RATE_CMD, true);
+            if (ret < 0) {
+              FTS_ERROR("Failed to switch Report_Rate to 480HZ, ret=%d", ret);
+              return -EINVAL;
+            }
+          }
+        }
+
 	xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] = value;
 	if (xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] >
 	    xiaomi_touch_interfaces.touch_mode[mode][GET_MAX_VALUE]) {
@@ -2577,6 +2610,8 @@ int fts_ts_probe_entry(struct fts_ts_data *ts_data)
 	FTS_INFO("FW ver = %02x", fwver);
 
 	fts_init_xiaomi_touchfeature(ts_data);
+
+        ts_data->report_rate_status = 240;
 
 	FTS_FUNC_EXIT();
 	return 0;

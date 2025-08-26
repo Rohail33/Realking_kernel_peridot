@@ -308,6 +308,7 @@ struct fts_ts_data {
 	struct mutex cmd_update_mutex;
 	int fod_status;
 	u8 gesture_status;
+        int report_rate_status;
 };
 
 enum GESTURE_MODE_TYPE {
@@ -448,6 +449,8 @@ int fts_fwdbg_exit(struct fts_ts_data *ts_data);
 int fts_fwdbg_irq_handler(struct fts_ts_data *ts_data);
 void fts_fwdbg_handle_reset(struct fts_ts_data *ts_data);
 int fts_fwdbg_recovery(struct fts_ts_data *ts_data);
+
+int fts_switch_report_rate(struct fts_ts_data *cd, bool on);
 
 //int fts_fhp_init(struct fts_ts_data *ts_data);
 //void fts_fhp_exit(struct fts_ts_data *ts_data);

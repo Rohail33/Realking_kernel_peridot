@@ -1693,6 +1693,50 @@ static ssize_t fts_tamode_store(struct device *dev,
 	return count;
 }
 
+/* switch_report_rate sysfs */
+static ssize_t switch_report_rate_show(struct device *dev,
+                struct device_attribute *attr, char *buf)
+{
+        struct fts_ts_data *ts_data = dev_get_drvdata(dev);
+        int r = 0;
+
+        if (!ts_data)
+                return -ENODEV;
+
+        r = snprintf(buf, PAGE_SIZE, "touch report rate::%s\n",
+                     (ts_data->report_rate_status == 480) ? "480HZ" : "240HZ");
+
+        return r;
+}
+
+static ssize_t switch_report_rate_store(struct device *dev,
+                struct device_attribute *attr, const char *buf, size_t count)
+{
+        struct fts_ts_data *ts_data = dev_get_drvdata(dev);
+        unsigned long val;
+        int ret;
+
+        if (!ts_data)
+                return -ENODEV;
+
+        if (kstrtoul(buf, 0, &val))
+                return -EINVAL;
+
+        val = !!val; /* 0 = 240Hz, 1 = 480Hz */
+
+        ret = fts_switch_report_rate(ts_data, val);
+        if (ret < 0)
+                return ret;
+
+        ts_data->report_rate_status = val ? 480 : 240;
+
+        return count;
+}
+
+/* switch report rate node */
+
+static DEVICE_ATTR_RW(switch_report_rate);
+
 /* get the fw version  example:cat fw_version */
 static DEVICE_ATTR(fts_fw_version, S_IRUGO | S_IWUSR, fts_tpfwver_show,
 		   fts_tpfwver_store);
@@ -1751,6 +1795,7 @@ static struct attribute *fts_attributes[] = { &dev_attr_fts_fw_version.attr,
 					      &dev_attr_fts_pen.attr,
 					      &dev_attr_fts_touch_size.attr,
 					      &dev_attr_fts_ta_mode.attr,
+                                              &dev_attr_switch_report_rate.attr,
 					      NULL };
 
 static struct attribute_group fts_attribute_group = { .attrs = fts_attributes };
