@@ -68,6 +68,8 @@
 
 #define FTS_WAKELOCK_TIMEOUT 5000
 
+#define DUMPBUFF_HEAD (1+1+24)
+
 /*****************************************************************************
 * Global variable or extern global variabls/functions
 *****************************************************************************/
@@ -1125,55 +1127,32 @@ static int fts_read_touchdata_i2c(struct fts_ts_data *ts_data, u8 *buf)
 
 static int fts_read_parse_touchdata(struct fts_ts_data *ts_data, u8 *touch_buf)
 {
-	int ret = 0;
+    int ret = 0;
+    u8 gesture_en = 0xFF;
 
-	memset(touch_buf, 0xFF, FTS_MAX_TOUCH_BUF);
-	ts_data->ta_size = ts_data->touch_size;
+    memset(touch_buf, 0xFF, FTS_MAX_TOUCH_BUF - DUMPBUFF_HEAD);
+    ts_data->ta_size = ts_data->touch_size;
 
-	/*read touch data*/
-	if (ts_data->bus_type == BUS_TYPE_SPI)
-		ret = fts_read_touchdata_spi(ts_data, touch_buf);
-	else if (ts_data->bus_type == BUS_TYPE_I2C)
-		ret = fts_read_touchdata_i2c(ts_data, touch_buf);
-	else
-		FTS_ERROR("unknown bus type:%d", ts_data->bus_type);
-	if (ret < 0) {
-		FTS_ERROR("unknown BUS type");
-		return TOUCH_ERROR;
-	}
+    /*read touch data*/
+    ret = fts_read_touchdata_spi(ts_data, touch_buf);
+    if (ret < 0) {
+        FTS_ERROR("read touch data fails");
+        return TOUCH_ERROR;
+    }
 
-	if (ts_data->log_level >= 3)
-		fts_show_touch_buffer(touch_buf, ts_data->ta_size);
+    if (ts_data->log_level >= 3)
+        fts_show_touch_buffer(touch_buf, ts_data->ta_size);
 
-	if (ret)
-		return TOUCH_IGNORE;
+    if (ret)
+        return TOUCH_IGNORE;
 
-	if ((touch_buf[1] == 0xFF) && (touch_buf[2] == 0xFF) &&
-	    (touch_buf[3] == 0xFF) && (touch_buf[4] == 0xFF)) {
-		FTS_INFO("touch buff is 0xff, FW initialized");
-		return TOUCH_FW_INIT;
-	}
+    if ((touch_buf[1] == 0xFF) && (touch_buf[2] == 0xFF)
+        && (touch_buf[3] == 0xFF) && (touch_buf[4] == 0xFF)) {
+        FTS_INFO("touch buff is 0xff, need recovery state");
+        return TOUCH_FW_INIT;
+    }
 
-#if FTS_PSENSOR_EN
-	if (ts_data->proximity_mode) {
-		if (fts_proximity_readdata(ts_data) ==
-		    FTS_RETVAL_IGNORE_TOUCHES)
-			return TOUCH_IGNORE;
-	}
-#endif
-
-	if (ts_data->suspended && ts_data->gesture_support) {
-		if (fts_gesture_readdata(ts_data, touch_buf) ==
-		    FTS_RETVAL_IGNORE_TOUCHES)
-			return TOUCH_IGNORE;
-	}
-
-	if (ts_data->suspended) {
-		FTS_INFO("In suspend state, not report touch points");
-		return TOUCH_IGNORE;
-	}
-
-	return ((touch_buf[FTS_TOUCH_E_NUM] >> 4) & 0x0F);
+    return ((touch_buf[FTS_TOUCH_E_NUM] >> 4) & 0x0F);
 }
 
 static int fts_irq_read_report(struct fts_ts_data *ts_data)
