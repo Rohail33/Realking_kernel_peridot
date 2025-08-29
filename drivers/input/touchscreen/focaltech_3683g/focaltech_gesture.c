@@ -540,7 +540,7 @@ int fts_gesture_init(struct fts_ts_data *ts_data)
 
 	memset(&fts_gesture_data, 0, sizeof(struct fts_gesture_st));
 	ts_data->gesture_bmode = GESTURE_BM_REG;
-	ts_data->gesture_support = DISABLE;
+	ts_data->gesture_support = ENABLE;
 
 	if (ts_data->bus_type == BUS_TYPE_SPI) {
 		if ((ts_data->ic_info.ids.type <= 0x25) ||
