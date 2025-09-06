@@ -293,6 +293,8 @@ int xiaomitouch_register_modedata(int touchId,
 		touch_data->enable_touch_delta = data->enable_touch_delta;
 	if (data->enable_clicktouch_raw)
 		touch_data->enable_clicktouch_raw = data->enable_clicktouch_raw;
+	if (data->get_touch_super_resolution_factor)
+		touch_data->get_touch_super_resolution_factor = data->get_touch_super_resolution_factor;
 
 	mutex_unlock(&xiaomi_touch_dev.mutex);
 
@@ -1261,6 +1263,20 @@ static ssize_t fod_press_status_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", pdata->fod_press_status_value);
 }
 
+static ssize_t resolution_factor_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int factor = 1;
+
+	if (!touch_pdata) {
+		return -ENODEV;
+	}
+	if (touch_pdata->touch_data[0]->get_touch_super_resolution_factor) {
+		factor = touch_pdata->touch_data[0]->get_touch_super_resolution_factor();
+	}
+	return snprintf(buf, PAGE_SIZE, "%d", factor);
+}
+
 static ssize_t fod_longpress_gesture_enabled_show(struct device *dev,
 						  struct device_attribute *attr,
 						  char *buf)
@@ -1382,6 +1398,8 @@ static DEVICE_ATTR_RW(gesture_single_tap_enabled);
 static DEVICE_ATTR(gesture_single_tap_state, (0664),
 		   gesture_single_tap_value_show, NULL);
 
+static DEVICE_ATTR(resolution_factor, 0644, resolution_factor_show, NULL);
+
 static DEVICE_ATTR_RW(gesture_double_tap_enabled);
 
 static DEVICE_ATTR(gesture_double_tap_state, (0664),
@@ -1416,6 +1434,7 @@ static struct attribute *touch_attr_group[] = {
 	&dev_attr_fod_longpress_gesture_enabled.attr,
 	&dev_attr_gesture_single_tap_enabled.attr,
 	&dev_attr_gesture_single_tap_state.attr,
+        &dev_attr_resolution_factor.attr,
 	&dev_attr_gesture_double_tap_enabled.attr,
 	&dev_attr_gesture_double_tap_state.attr,
 	NULL,
