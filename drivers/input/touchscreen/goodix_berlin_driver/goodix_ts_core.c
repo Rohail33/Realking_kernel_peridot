@@ -42,6 +42,7 @@ struct goodix_ts_core *ts_core;
 
 #define DISP_ID1_DET  364   // GPIO 0x16C
 #define DISP_ID2_DET  379   // GPIO 0x17B
+int id_flag;
 
 #if defined(CONFIG_DRM)
 static struct drm_panel *active_panel;
@@ -1177,8 +1178,8 @@ static int goodix_parse_dt(struct device_node *node,
 	struct goodix_ts_board_data *board_data)
 {
 	const char *name_tmp;
-	const char *firmware_property = GOODIX_DEFAULT_FW_PROPERTY;
-	const char *config_property = GOODIX_DEFAULT_CFG_PROPERTY;
+        const char *firmware_property, *config_property;
+	const char *fw_prop, *cfg_prop;
 	int r;
 	int gpio_a;
 	int gpio_b;
@@ -1186,6 +1187,16 @@ static int goodix_parse_dt(struct device_node *node,
 	if (!board_data) {
 		ts_err("invalid board data");
 		return -EINVAL;
+	}
+
+	fw_prop  = "goodix,firmware-name";
+	cfg_prop = "goodix,config-name";
+	if (id_flag == 0) {
+		fw_prop  = "goodix,firmware-name-second";
+		cfg_prop = "goodix,config-name-second";
+		ts_info("ID_Flag=0, using secondary DT keys: %s / %s", fw_prop, cfg_prop);
+	} else {
+		ts_info("ID_Flag=%d, using primary DT keys: %s / %s", id_flag, fw_prop, cfg_prop);
 	}
 
 	r = of_get_named_gpio(node, "goodix,avdd-gpio", 0);
@@ -1293,7 +1304,7 @@ static int goodix_parse_dt(struct device_node *node,
 	}
 
 	/* get firmware file name */
-	r = of_property_read_string(node, firmware_property, &name_tmp);
+	r = of_property_read_string(node, fw_prop, &name_tmp);
 	if (!r) {
 		ts_info("firmware name from dt: %s", name_tmp);
 		strlcpy(board_data->fw_name,
@@ -1307,7 +1318,7 @@ static int goodix_parse_dt(struct device_node *node,
 	}
 
 	/* get config file name */
-	r = of_property_read_string(node, config_property, &name_tmp);
+	r = of_property_read_string(node, cfg_prop, &name_tmp);
 	if (!r) {
 		ts_info("config name from dt: %s", name_tmp);
 		strlcpy(board_data->cfg_bin_name, name_tmp,
@@ -2938,7 +2949,6 @@ static int __init goodix_ts_core_init(void)
 {
     int ret;
     int gpio_id1, gpio_id2;
-    int id_flag;
 
     ts_info("Core layer init:%s", GOODIX_DRIVER_VERSION);
 
