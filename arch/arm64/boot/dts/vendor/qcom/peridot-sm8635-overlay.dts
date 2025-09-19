@@ -11823,7 +11823,7 @@
 				mi,normal-max-brightness-clone = <0xfff>;
 				mi,max-brightness-clone = <0x3fff>;
 				mi,panel-id = <0x4e313654 0x42020a>;
-				qcom,dsi-supported-dfps-list = <0x3c 0x78 0x5a 0x1e>;
+				qcom,dsi-supported-dfps-list = <0x3c 0x78 0x5a>;
 				mi,mdss-dsi-panel-flatmode-on-status-value = <0x00 0x40>;
 				mi,mdss-dsi-panel-flatmode-status-read-length = <0x02>;
 				mi,mdss-dsi-panel-flatmode-status-command-state = "dsi_hs_mode";
@@ -12020,7 +12020,7 @@
 				qcom,mdss-dsi-panel-hdr-color-primaries = <0x3d13 0x4042 0x84d0 0x3e80 0x33c2 0x86c4 0x1d4c 0xbb8>;
 				qcom,mdss-dsi-panel-hdr-enabled;
 				qcom,mdss-dsi-panel-dimming-enabled;
-				qcom,dsi-supported-dfps-list = <0x3c 0x78 0x5a 0x1e>;
+				qcom,dsi-supported-dfps-list = <0x3c 0x78 0x5a>;
 				qcom,mdss-dsi-pan-fps-update = "dfps_immediate_porch_mode_vfp";
 				qcom,mdss-dsi-pan-enable-dynamic-fps;
 				qcom,bl-update-flag = "delay_until_first_frame";
@@ -12184,7 +12184,7 @@
 				mi,normal-max-brightness-clone = <0xfff>;
 				mi,max-brightness-clone = <0x3fff>;
 				mi,panel-id = <0x4e313654 0x420a0c>;
-				qcom,dsi-supported-dfps-list = <0x3c 0x78 0x5a 0x1e>;
+				qcom,dsi-supported-dfps-list = <0x3c 0x78 0x5a>;
 				mi,mdss-dsi-panel-flatmode-on-status-value = <0x01>;
 				mi,mdss-dsi-panel-flatmode-status-read-length = <0x01>;
 				mi,mdss-dsi-panel-flatmode-status-command-state = "dsi_hs_mode";

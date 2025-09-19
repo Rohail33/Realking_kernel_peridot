@@ -30,7 +30,7 @@
 		qcom,bl-update-flag = "delay_until_first_frame";
 		qcom,mdss-dsi-pan-enable-dynamic-fps;
 		qcom,mdss-dsi-pan-fps-update = "dfps_immediate_porch_mode_vfp";
-		qcom,dsi-supported-dfps-list = <60 120 90 30>;
+		qcom,dsi-supported-dfps-list = <60 120 90>;
 		qcom,mdss-dsi-panel-dimming-enabled;
 
 		qcom,mdss-dsi-panel-hdr-enabled;
