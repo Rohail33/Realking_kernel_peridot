@@ -428,4 +428,5 @@ dtb-y += $(sdmsteppeauto-dtb-y)
 
 always-y        := $(dtb-y)
 subdir-y        := $(dts-dirs)
+subdir-y        += camera display
 clean-files     := *.dtb *.dtbo
