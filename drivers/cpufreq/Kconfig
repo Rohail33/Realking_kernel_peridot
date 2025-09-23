@@ -260,6 +260,12 @@ config CPUFREQ_DUMMY
 
 	  If in doubt, say N
 
+config CPU_BOOST_MAX
+	bool "Max CPU frequency boost helper"
+	depends on CPU_FREQ && PM
+	help
+	  A simple driver for kernelspace max cpufreq boosting
+
 if X86
 source "drivers/cpufreq/Kconfig.x86"
 endif
