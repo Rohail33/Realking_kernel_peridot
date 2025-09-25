@@ -25,6 +25,7 @@ static const enum dcvs_hw_type boost_hw_list[] = {
 
 static DECLARE_BITMAP(registered_hw, NUM_DCVS_HW_TYPES);
 static DECLARE_BITMAP(active_hw, NUM_DCVS_HW_TYPES);
+static DECLARE_BITMAP(active_max_hw, NUM_DCVS_HW_TYPES);
 static DEFINE_MUTEX(boost_lock);
 
 static atomic_long_t boost_expires = ATOMIC_LONG_INIT(0);
@@ -117,6 +118,47 @@ static int apply_votes(const unsigned long *mask, bool clear)
 	return ret;
 }
 
+static int apply_votes_max(const unsigned long *mask, bool clear)
+{
+	struct dcvs_freq votes[NUM_DCVS_HW_TYPES] = { };
+	u32 update_mask = 0;
+	int i, ret = 0;
+
+	for (i = 0; i < ARRAY_SIZE(boost_hw_list); i++) {
+		enum dcvs_hw_type hw = boost_hw_list[i];
+		u32 min_khz = 0, max_khz = 0;
+		u32 khz;
+		int rc;
+
+		if (!test_bit(hw, mask))
+			continue;
+
+		rc = ensure_voter_registered(hw);
+		if (rc)
+			continue;
+
+		if (clear) {
+			khz = 0;
+		} else {
+			rc = qcom_dcvs_hw_minmax_get(hw, &min_khz, &max_khz);
+			if (rc)
+				continue;
+			khz = max_khz;
+		}
+
+		votes[hw].hw_type = hw;
+		votes[hw].ib = khz;
+		votes[hw].ab = 0;
+		update_mask |= BIT(hw);
+	}
+
+	if (!update_mask)
+		return 0;
+
+	ret = qcom_dcvs_update_votes(BOOSTER_NAME, votes, update_mask, DCVS_SLOW_PATH);
+	return ret;
+}
+
 static void dcvs_boost_worker(struct work_struct *work)
 {
 	unsigned long now = jiffies;
@@ -141,7 +183,10 @@ static void dcvs_boost_worker(struct work_struct *work)
 	if (!bitmap_empty(active_hw, NUM_DCVS_HW_TYPES))
 		(void)apply_votes(active_hw, true);
 
+	if (!bitmap_empty(active_max_hw, NUM_DCVS_HW_TYPES))
+		(void)apply_votes_max(active_max_hw, true);
 	bitmap_zero(active_hw, NUM_DCVS_HW_TYPES);
+	bitmap_zero(active_max_hw, NUM_DCVS_HW_TYPES);
 	mutex_unlock(&boost_lock);
 }
 
@@ -183,6 +228,38 @@ void qcom_dcvs_bus_boost_kick(unsigned int duration_ms)
 }
 EXPORT_SYMBOL_GPL(qcom_dcvs_bus_boost_kick);
 
+void qcom_dcvs_bus_boost_kick_max(unsigned int duration_ms)
+{
+	unsigned long now = jiffies;
+	unsigned long new_exp = now + msecs_to_jiffies(duration_ms);
+	unsigned long old = atomic_long_read(&boost_expires);
+	unsigned long mask[BITS_TO_LONGS(NUM_DCVS_HW_TYPES)] = { 0 };
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(boost_hw_list); i++)
+		__set_bit(boost_hw_list[i], mask);
+
+	for (;;) {
+		if (time_after(old, new_exp))
+			break;
+
+		if (atomic_long_try_cmpxchg(&boost_expires, &old, new_exp))
+			break;
+	}
+
+	{
+		unsigned long exp = atomic_long_read(&boost_expires);
+		unsigned long delay = time_after(exp, now) ? exp - now : 0;
+		mod_delayed_work(system_unbound_wq, &boost_disable_work, delay);
+	}
+
+	mutex_lock(&boost_lock);
+	bitmap_or(active_max_hw, active_max_hw, mask, NUM_DCVS_HW_TYPES);
+	(void)apply_votes_max(mask, false);
+	mutex_unlock(&boost_lock);
+}
+EXPORT_SYMBOL_GPL(qcom_dcvs_bus_boost_kick_max);
+
 static int __init dcvs_boost_init(void)
 {
 	INIT_DELAYED_WORK(&boost_disable_work, dcvs_boost_worker);
@@ -196,7 +273,10 @@ static void __exit dcvs_boost_exit(void)
 	if (!bitmap_empty(active_hw, NUM_DCVS_HW_TYPES))
 		(void)apply_votes(active_hw, true);
 
+	if (!bitmap_empty(active_max_hw, NUM_DCVS_HW_TYPES))
+		(void)apply_votes_max(active_max_hw, true);
 	bitmap_zero(active_hw, NUM_DCVS_HW_TYPES);
+	bitmap_zero(active_max_hw, NUM_DCVS_HW_TYPES);
 	mutex_unlock(&boost_lock);
 	cancel_delayed_work_sync(&boost_disable_work);
 }
