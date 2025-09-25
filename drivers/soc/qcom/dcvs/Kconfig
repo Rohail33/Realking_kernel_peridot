@@ -189,3 +189,33 @@ config QTI_DYNPF_SCMI
 	  userspace and relays them to CPUCP via SCMI communication.
 	  It is intended to be used by clients familiar with modifying
 	  the DYNPF settings.
+
+config QCOM_DCVS_BOOST
+	tristate "Qualcomm DCVS timed boost (DDR/LLCC/L3)"
+	depends on QCOM_DCVS
+	help
+	  Enable a DCVS booster that temporarily raises the DDR, LLCC,
+	  and L3 DCVS votes to selected kHz for specified duration using
+	  the voter api.
+
+if QCOM_DCVS_BOOST
+
+config QCOM_DCVS_BOOST_KHZ_DDR
+	int "DDR boost preset (kHz)"
+	default 0
+	help
+	  kHz floor to vote on DDR during a boost window; 0 disables DDR boosting.
+
+config QCOM_DCVS_BOOST_KHZ_LLCC
+	int "LLCC boost preset (kHz)"
+	default 0
+	help
+	  kHz floor to vote on LLCC during a boost window; 0 disables LLCC boosting.
+
+config QCOM_DCVS_BOOST_KHZ_L3
+	int "L3 boost preset (kHz)"
+	default 0
+	help
+	  kHz floor to vote on L3 during a boost window; 0 disables L3 boosting.
+
+endif
