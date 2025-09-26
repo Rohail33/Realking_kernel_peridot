@@ -241,4 +241,6 @@ source "drivers/hte/Kconfig"
 
 source "drivers/xiaomi/Kconfig"
 
+source "drivers/kprofiles/Kconfig"
+
 endmenu
