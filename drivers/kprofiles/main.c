@@ -41,7 +41,7 @@ EXPORT_SYMBOL_GPL(KP_MODE_CHANGE);
 static unsigned int kp_override_mode;
 static bool kp_override;
 
-static bool auto_kp __read_mostly = 0
+static bool auto_kp __read_mostly = 0;
 module_param(auto_kp, bool, 0664);
 MODULE_PARM_DESC(auto_kp, "Enable/disable automatic kernel profile management");
 
@@ -169,6 +169,8 @@ int kp_active_mode(void)
 		kp_trigger_mode_change_event();
 		kp_err("Invalid value passed, falling back to level 0\n");
 	}
+	if (READ_ONCE(kp_mode) == 0)
+		WRITE_ONCE(kp_mode, 2);
 
 	return READ_ONCE(kp_mode);
 }
