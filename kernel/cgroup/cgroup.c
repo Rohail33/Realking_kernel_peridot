@@ -5212,6 +5212,8 @@ static int cgroup_attach_permissions(struct cgroup *src_cgrp,
 	return ret;
 }
 
+extern int kp_active_mode(void);
+
 static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
 				    bool threadgroup)
 {
@@ -5254,7 +5256,7 @@ static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
 	/* This covers boosting for app launches and app transitions */
 	if (!ret && !threadgroup &&
 	    !memcmp(of->kn->parent->name, "top-app", sizeof("top-app")) &&
-	    task_is_zygote(task->parent)) {
+	    task_is_zygote(task->parent) && kp_active_mode() != 1) {
 		cpu_boost_max(500);
 	}
 

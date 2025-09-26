@@ -488,6 +488,8 @@ static int cgroup_pidlist_show(struct seq_file *s, void *v)
 	return 0;
 }
 
+extern int kp_active_mode(void);
+
 static ssize_t __cgroup1_procs_write(struct kernfs_open_file *of,
 				     char *buf, size_t nbytes, loff_t off,
 				     bool threadgroup)
@@ -529,7 +531,7 @@ static ssize_t __cgroup1_procs_write(struct kernfs_open_file *of,
 	/* This covers boosting for app launches and app transitions */
 	if (!ret && !threadgroup &&
 		!memcmp(of->kn->parent->name, "top-app", sizeof("top-app")) &&
-		task_is_zygote(task->parent)) {
+		task_is_zygote(task->parent) && kp_active_mode() != 1) {
 		cpu_boost_max(500);
 	}
 
