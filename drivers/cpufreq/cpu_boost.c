@@ -13,12 +13,17 @@
 #include <linux/atomic.h>
 #include <linux/minmax.h>
 #include <linux/cpu_boost.h>
+#include <linux/spinlock.h>
 
 static struct freq_qos_request boost_max_req[NR_CPUS];
 static DECLARE_BITMAP(boost_max_active, NR_CPUS);
 
 static struct freq_qos_request boost_kick_req[NR_CPUS];
 static DECLARE_BITMAP(boost_kick_active, NR_CPUS);
+
+static DEFINE_SPINLOCK(pending_lock);
+static DECLARE_BITMAP(pending_max_enable, NR_CPUS);
+static DECLARE_BITMAP(pending_kick_enable, NR_CPUS);
 
 static atomic_long_t boost_expires = ATOMIC_LONG_INIT(0);
 
@@ -48,19 +53,76 @@ static void cpu_boost_worker(struct work_struct *work)
 	unsigned long now = jiffies;
 	unsigned long exp = atomic_long_read(&boost_expires);
 	unsigned long delay;
+	unsigned long flags;
+	DECLARE_BITMAP(en_max, NR_CPUS);
+	DECLARE_BITMAP(en_kick, NR_CPUS);
 	int cpu, leader;
 	struct cpufreq_policy *policy;
+	s32 max_khz, req_khz;
 
-	if (!boost_window_expired(now, exp)) {
-		delay = time_after(exp, now) ? exp - now : 0;
-		mod_delayed_work(system_unbound_wq, &boost_disable_work, delay);
-		return;
+	bitmap_zero(en_max, NR_CPUS);
+	bitmap_zero(en_kick, NR_CPUS);
+
+	spin_lock_irqsave(&pending_lock, flags);
+	if (!bitmap_empty(pending_max_enable, NR_CPUS))
+		bitmap_copy(en_max, pending_max_enable, NR_CPUS);
+
+	if (!bitmap_empty(pending_kick_enable, NR_CPUS))
+		bitmap_copy(en_kick, pending_kick_enable, NR_CPUS);
+
+	bitmap_zero(pending_max_enable, NR_CPUS);
+	bitmap_zero(pending_kick_enable, NR_CPUS);
+	spin_unlock_irqrestore(&pending_lock, flags);
+
+	cpus_read_lock();
+	for_each_online_cpu(cpu) {
+		policy = cpufreq_cpu_get(cpu);
+		if (!policy)
+			continue;
+
+		leader = policy->cpu;
+		if (cpu == leader) {
+			if (test_bit(leader, en_max)) {
+				max_khz = (s32)policy->cpuinfo.max_freq;
+				if (!test_bit(leader, boost_max_active)) {
+					if (freq_qos_add_request(&policy->constraints,
+								 &boost_max_req[leader],
+								 FREQ_QOS_MIN, max_khz) < 0) {
+					} else {
+						__set_bit(leader, boost_max_active);
+					}
+				} else {
+					(void)freq_qos_update_request(&boost_max_req[leader], max_khz);
+				}
+			}
+
+			if (test_bit(leader, en_kick)) {
+				max_khz = (s32)policy->cpuinfo.max_freq;
+				req_khz = kick_khz_for_cpu(leader);
+				if (req_khz > 0) {
+					if (req_khz > max_khz)
+						req_khz = max_khz;
+					if (!test_bit(leader, boost_kick_active)) {
+						if (freq_qos_add_request(&policy->constraints,
+									 &boost_kick_req[leader],
+									 FREQ_QOS_MIN, req_khz) < 0) {
+						} else {
+							__set_bit(leader, boost_kick_active);
+						}
+					} else {
+						(void)freq_qos_update_request(&boost_kick_req[leader], req_khz);
+					}
+				}
+			}
+		}
+		cpufreq_cpu_put(policy);
 	}
 
 	now = jiffies;
 	exp = atomic_long_read(&boost_expires);
 	if (!boost_window_expired(now, exp)) {
 		delay = time_after(exp, now) ? exp - now : 0;
+		cpus_read_unlock();
 		mod_delayed_work(system_unbound_wq, &boost_disable_work, delay);
 		return;
 	}
@@ -74,11 +136,13 @@ static void cpu_boost_worker(struct work_struct *work)
 		if (cpu == leader) {
 			if (test_and_clear_bit(leader, boost_max_active))
 				freq_qos_remove_request(&boost_max_req[leader]);
+
 			if (test_and_clear_bit(leader, boost_kick_active))
 				freq_qos_remove_request(&boost_kick_req[leader]);
 		}
 		cpufreq_cpu_put(policy);
 	}
+	cpus_read_unlock();
 }
 
 void cpu_boost_max(unsigned int duration_ms)
@@ -86,45 +150,20 @@ void cpu_boost_max(unsigned int duration_ms)
 	unsigned long now = jiffies;
 	unsigned long new_exp = now + msecs_to_jiffies(duration_ms);
 	unsigned long old = atomic_long_read(&boost_expires);
-	int cpu, leader, ret;
-	struct cpufreq_policy *policy;
-	s32 max_khz;
+	unsigned long flags;
 
 	for (;;) {
 		if (time_after(old, new_exp))
 			break;
+
 		if (atomic_long_try_cmpxchg(&boost_expires, &old, new_exp))
 			break;
 	}
 
-	{
-		unsigned long exp = atomic_long_read(&boost_expires);
-		unsigned long delay = time_after(exp, now) ? exp - now : 0;
-		mod_delayed_work(system_unbound_wq, &boost_disable_work, delay);
-	}
-
-	for_each_online_cpu(cpu) {
-		policy = cpufreq_cpu_get(cpu);
-		if (!policy)
-			continue;
-
-		leader = policy->cpu;
-		if (cpu == leader) {
-			max_khz = (s32)policy->cpuinfo.max_freq;
-			if (!test_and_set_bit(leader, boost_max_active)) {
-				ret = freq_qos_add_request(&policy->constraints,
-							   &boost_max_req[leader],
-							   FREQ_QOS_MIN, max_khz);
-				if (ret < 0)
-					clear_bit(leader, boost_max_active);
-			} else {
-				ret = freq_qos_update_request(&boost_max_req[leader],
-							      max_khz);
-				(void)ret;
-			}
-		}
-		cpufreq_cpu_put(policy);
-	}
+	mod_delayed_work(system_unbound_wq, &boost_disable_work, 0);
+	spin_lock_irqsave(&pending_lock, flags);
+	bitmap_fill(pending_max_enable, NR_CPUS);
+	spin_unlock_irqrestore(&pending_lock, flags);
 }
 EXPORT_SYMBOL_GPL(cpu_boost_max);
 
@@ -133,9 +172,7 @@ void cpu_boost_kick(unsigned int duration_ms)
 	unsigned long now = jiffies;
 	unsigned long new_exp = now + msecs_to_jiffies(duration_ms);
 	unsigned long old = atomic_long_read(&boost_expires);
-	int cpu, leader, ret;
-	struct cpufreq_policy *policy;
-	s32 req_khz, max_khz;
+	unsigned long flags;
 
 	for (;;) {
 		if (time_after(old, new_exp))
@@ -145,42 +182,10 @@ void cpu_boost_kick(unsigned int duration_ms)
 			break;
 	}
 
-	{
-		unsigned long exp = atomic_long_read(&boost_expires);
-		unsigned long delay = time_after(exp, now) ? exp - now : 0;
-		mod_delayed_work(system_unbound_wq, &boost_disable_work, delay);
-	}
-
-	for_each_online_cpu(cpu) {
-		policy = cpufreq_cpu_get(cpu);
-		if (!policy)
-			continue;
-
-		leader = policy->cpu;
-		if (cpu == leader) {
-			max_khz = (s32)policy->cpuinfo.max_freq;
-			req_khz = kick_khz_for_cpu(leader);
-
-			if (req_khz > 0) {
-				if (req_khz > max_khz)
-					req_khz = max_khz;
-
-				if (!test_and_set_bit(leader, boost_kick_active)) {
-					ret = freq_qos_add_request(&policy->constraints,
-								   &boost_kick_req[leader],
-								   FREQ_QOS_MIN, req_khz);
-					if (ret < 0)
-						clear_bit(leader, boost_kick_active);
-				} else {
-					ret = freq_qos_update_request(&boost_kick_req[leader],
-								      req_khz);
-					(void)ret;
-				}
-			}
-		}
-
-		cpufreq_cpu_put(policy);
-	}
+	mod_delayed_work(system_unbound_wq, &boost_disable_work, 0);
+	spin_lock_irqsave(&pending_lock, flags);
+	bitmap_fill(pending_kick_enable, NR_CPUS);
+	spin_unlock_irqrestore(&pending_lock, flags);
 }
 EXPORT_SYMBOL_GPL(cpu_boost_kick);
 
@@ -196,6 +201,14 @@ static int boost_policy_notifier(struct notifier_block *nb,
 
 		if (leader >= 0 && test_and_clear_bit(leader, boost_kick_active))
 			freq_qos_remove_request(&boost_kick_req[leader]);
+
+		if (leader >= 0) {
+			unsigned long flags;
+			spin_lock_irqsave(&pending_lock, flags);
+			__clear_bit(leader, pending_max_enable);
+			__clear_bit(leader, pending_kick_enable);
+			spin_unlock_irqrestore(&pending_lock, flags);
+		}
 	}
 	return 0;
 }
