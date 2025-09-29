@@ -11,6 +11,8 @@
 #include <linux/bitops.h>
 #include <linux/bitmap.h>
 #include <linux/export.h>
+#include <linux/spinlock.h>
+#include <linux/bug.h>
 
 #include <soc/qcom/dcvs.h>
 #include <soc/qcom/dcvs_boost.h>
@@ -27,6 +29,10 @@ static DECLARE_BITMAP(registered_hw, NUM_DCVS_HW_TYPES);
 static DECLARE_BITMAP(active_hw, NUM_DCVS_HW_TYPES);
 static DECLARE_BITMAP(active_max_hw, NUM_DCVS_HW_TYPES);
 static DEFINE_MUTEX(boost_lock);
+
+static DEFINE_SPINLOCK(pending_lock);
+static DECLARE_BITMAP(pending_hw, NUM_DCVS_HW_TYPES);
+static DECLARE_BITMAP(pending_max_hw, NUM_DCVS_HW_TYPES);
 
 static atomic_long_t boost_expires = ATOMIC_LONG_INIT(0);
 static struct delayed_work boost_disable_work;
@@ -143,6 +149,7 @@ static int apply_votes_max(const unsigned long *mask, bool clear)
 			rc = qcom_dcvs_hw_minmax_get(hw, &min_khz, &max_khz);
 			if (rc)
 				continue;
+
 			khz = max_khz;
 		}
 
@@ -161,14 +168,35 @@ static int apply_votes_max(const unsigned long *mask, bool clear)
 
 static void dcvs_boost_worker(struct work_struct *work)
 {
+	unsigned long flags;
+	unsigned long en_mask[BITS_TO_LONGS(NUM_DCVS_HW_TYPES)] = { 0 };
+	unsigned long en_max[BITS_TO_LONGS(NUM_DCVS_HW_TYPES)] = { 0 };
 	unsigned long now = jiffies;
 	unsigned long exp = atomic_long_read(&boost_expires);
 	unsigned long delay;
 
-	if (!boost_window_expired(now, exp)) {
-		delay = time_after(exp, now) ? exp - now : 0;
-		mod_delayed_work(system_unbound_wq, &boost_disable_work, delay);
-		return;
+	spin_lock_irqsave(&pending_lock, flags);
+	if (!bitmap_empty(pending_hw, NUM_DCVS_HW_TYPES))
+		bitmap_copy(en_mask, pending_hw, NUM_DCVS_HW_TYPES);
+
+	if (!bitmap_empty(pending_max_hw, NUM_DCVS_HW_TYPES))
+		bitmap_copy(en_max, pending_max_hw, NUM_DCVS_HW_TYPES);
+
+	bitmap_zero(pending_hw, NUM_DCVS_HW_TYPES);
+	bitmap_zero(pending_max_hw, NUM_DCVS_HW_TYPES);
+	spin_unlock_irqrestore(&pending_lock, flags);
+
+	if (!bitmap_empty(en_mask, NUM_DCVS_HW_TYPES) || !bitmap_empty(en_max, NUM_DCVS_HW_TYPES)) {
+		mutex_lock(&boost_lock);
+		if (!bitmap_empty(en_mask, NUM_DCVS_HW_TYPES)) {
+			bitmap_or(active_hw, active_hw, en_mask, NUM_DCVS_HW_TYPES);
+			(void)apply_votes(en_mask, false);
+		}
+		if (!bitmap_empty(en_max, NUM_DCVS_HW_TYPES)) {
+			bitmap_or(active_max_hw, active_max_hw, en_max, NUM_DCVS_HW_TYPES);
+			(void)apply_votes_max(en_max, false);
+		}
+		mutex_unlock(&boost_lock);
 	}
 
 	now = jiffies;
@@ -185,6 +213,7 @@ static void dcvs_boost_worker(struct work_struct *work)
 
 	if (!bitmap_empty(active_max_hw, NUM_DCVS_HW_TYPES))
 		(void)apply_votes_max(active_max_hw, true);
+
 	bitmap_zero(active_hw, NUM_DCVS_HW_TYPES);
 	bitmap_zero(active_max_hw, NUM_DCVS_HW_TYPES);
 	mutex_unlock(&boost_lock);
@@ -215,16 +244,14 @@ void qcom_dcvs_bus_boost_kick(unsigned int duration_ms)
 			break;
 	}
 
-	{
-		unsigned long exp = atomic_long_read(&boost_expires);
-		unsigned long delay = time_after(exp, now) ? exp - now : 0;
-		mod_delayed_work(system_unbound_wq, &boost_disable_work, delay);
-	}
+	mod_delayed_work(system_unbound_wq, &boost_disable_work, 0);
 
-	mutex_lock(&boost_lock);
-	bitmap_or(active_hw, active_hw, mask, NUM_DCVS_HW_TYPES);
-	(void)apply_votes(mask, false);
-	mutex_unlock(&boost_lock);
+	{
+		unsigned long flags;
+		spin_lock_irqsave(&pending_lock, flags);
+		bitmap_or(pending_hw, pending_hw, mask, NUM_DCVS_HW_TYPES);
+		spin_unlock_irqrestore(&pending_lock, flags);
+	}
 }
 EXPORT_SYMBOL_GPL(qcom_dcvs_bus_boost_kick);
 
@@ -247,22 +274,23 @@ void qcom_dcvs_bus_boost_kick_max(unsigned int duration_ms)
 			break;
 	}
 
-	{
-		unsigned long exp = atomic_long_read(&boost_expires);
-		unsigned long delay = time_after(exp, now) ? exp - now : 0;
-		mod_delayed_work(system_unbound_wq, &boost_disable_work, delay);
-	}
+	mod_delayed_work(system_unbound_wq, &boost_disable_work, 0);
 
-	mutex_lock(&boost_lock);
-	bitmap_or(active_max_hw, active_max_hw, mask, NUM_DCVS_HW_TYPES);
-	(void)apply_votes_max(mask, false);
-	mutex_unlock(&boost_lock);
+	{
+		unsigned long flags;
+		spin_lock_irqsave(&pending_lock, flags);
+		bitmap_or(pending_max_hw, pending_max_hw, mask, NUM_DCVS_HW_TYPES);
+		spin_unlock_irqrestore(&pending_lock, flags);
+	}
 }
 EXPORT_SYMBOL_GPL(qcom_dcvs_bus_boost_kick_max);
 
 static int __init dcvs_boost_init(void)
 {
 	INIT_DELAYED_WORK(&boost_disable_work, dcvs_boost_worker);
+	BUILD_BUG_ON(NUM_DCVS_HW_TYPES > 32);
+	bitmap_zero(pending_hw, NUM_DCVS_HW_TYPES);
+	bitmap_zero(pending_max_hw, NUM_DCVS_HW_TYPES);
 	pr_info("initialized\n");
 	return 0;
 }
