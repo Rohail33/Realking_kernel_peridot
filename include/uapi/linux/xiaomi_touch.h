@@ -43,6 +43,7 @@ enum MODE_TYPE {
 	Touch_Fod_Longpress_Gesture,
 	Touch_Singletap_Gesture,
         TOUCH_MODE_REPORT_RATE,
+        TOUCH_MODE_FOD_FINGER_STATE,
 	Touch_Mode_NUM,
 	THP_LOCK_SCAN_MODE = THP_CMD_BASE + 0,
 	THP_FOD_DOWNUP_CTL = THP_CMD_BASE + 1,

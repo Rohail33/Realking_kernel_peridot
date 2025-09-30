@@ -2,6 +2,7 @@
 #include "xiaomi_touch.h"
 static struct xiaomi_touch_pdata *touch_pdata;
 static struct xiaomi_touch *xiaomi_touch_device;
+static atomic_t fod_finger_state;
 
 struct touch_mode_attribute {
 	struct device_attribute dev_attr;
@@ -80,6 +81,11 @@ static long xiaomi_touch_dev_ioctl(struct file *file, unsigned int cmd,
 	case SET_CUR_VALUE:
 		if (touch_data->setModeValue)
 			buf[0] = touch_data->setModeValue(buf[1], buf[2]);
+                if (buf[1] == TOUCH_MODE_FOD_FINGER_STATE) {
+			atomic_set(&fod_finger_state, buf[2]);
+			sysfs_notify(&xiaomi_touch_device->dev->kobj, NULL,
+				     "fod_finger_state");
+		}
 		break;
 	case GET_CUR_VALUE:
 	case GET_DEF_VALUE:
@@ -1367,6 +1373,12 @@ static ssize_t fod_press_status_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", pdata->fod_press_status_value);
 }
 
+static ssize_t fod_finger_state_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&fod_finger_state));
+}
+
 static ssize_t resolution_factor_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -1495,6 +1507,8 @@ static DEVICE_ATTR(update_rawdata, (0664), update_rawdata_show,
 
 static DEVICE_ATTR(fod_press_status, (0664), fod_press_status_show, NULL);
 
+static DEVICE_ATTR(fod_finger_state, 0444, fod_finger_state_show, NULL);
+
 static DEVICE_ATTR_RW(fod_longpress_gesture_enabled);
 
 static DEVICE_ATTR_RW(gesture_single_tap_enabled);
@@ -1535,6 +1549,7 @@ static struct attribute *touch_attr_group[] = {
 	&dev_attr_update_rawdata.attr,
 	&dev_attr_suspend_state.attr,
 	&dev_attr_fod_press_status.attr,
+        &dev_attr_fod_finger_state.attr,
 	&dev_attr_fod_longpress_gesture_enabled.attr,
 	&dev_attr_gesture_single_tap_enabled.attr,
 	&dev_attr_gesture_single_tap_state.attr,
