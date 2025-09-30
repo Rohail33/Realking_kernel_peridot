@@ -1135,12 +1135,25 @@ EXPORT_SYMBOL_GPL(update_clicktouch_raw);
 
 int xiaomi_touch_set_suspend_state(int state)
 {
-	if (!touch_pdata)
+	if (!touch_pdata) {
 		return -ENODEV;
-
+	}
 	touch_pdata->suspend_state = state;
 
-	sysfs_notify(&xiaomi_touch_dev.dev->kobj, NULL, "suspend_state");
+	/*
+	 * Resuming invalidates all pending gesture events to avoid
+	 * phantom wakes after suspending again.
+	 */
+	if (state == XIAOMI_TOUCH_RESUME) {
+		if (touch_pdata->gesture_single_tap_pending)
+			pr_info("cleared pending single tap gesture due to resume\n");
+		if (touch_pdata->gesture_double_tap_pending)
+			pr_info("cleared pending double tap gesture due to resume\n");
+		touch_pdata->gesture_single_tap_pending = false;
+		touch_pdata->gesture_double_tap_pending = false;
+	}
+
+	sysfs_notify(&xiaomi_touch_dev.dev->kobj, NULL,  "suspend_state");
 
 	return 0;
 }
@@ -1188,6 +1201,20 @@ EXPORT_SYMBOL_GPL(update_fod_press_status);
 
 int notify_gesture_single_tap(void)
 {
+	if (!touch_pdata) {
+		return -ENODEV;
+	}
+
+	/* Don't send gesture events when screen is resumed */
+	if (touch_pdata->suspend_state == XIAOMI_TOUCH_RESUME) {
+		pr_info("single tap gesture ignored because screen is in resume state\n");
+		touch_pdata->gesture_single_tap_pending = true;
+		return 0;
+	}
+
+	/* Clear pending flag when successfully sending gesture */
+	touch_pdata->gesture_single_tap_pending = false;
+
 	mutex_lock(&xiaomi_touch_dev.gesture_single_tap_mutex);
 	sysfs_notify(&xiaomi_touch_dev.dev->kobj, NULL,
 		     "gesture_single_tap_state");
@@ -1254,6 +1281,20 @@ static ssize_t gesture_single_tap_enabled_store(struct device *dev,
 
 int notify_gesture_double_tap(void)
 {
+	if (!touch_pdata) {
+		return -ENODEV;
+	}
+
+	/* Don't send gesture events when screen is resumed */
+	if (touch_pdata->suspend_state == XIAOMI_TOUCH_RESUME) {
+		pr_info("double tap gesture ignored because screen is in resume state\n");
+		touch_pdata->gesture_double_tap_pending = true;
+		return 0;
+	}
+
+	/* Clear pending flag when successfully sending gesture */
+	touch_pdata->gesture_double_tap_pending = false;
+
 	mutex_lock(&xiaomi_touch_dev.gesture_double_tap_mutex);
 	sysfs_notify(&xiaomi_touch_dev.dev->kobj, NULL,
 		     "gesture_double_tap_state");

@@ -136,6 +136,8 @@ struct xiaomi_touch_pdata {
 	int fod_press_status_value;
 	struct proc_dir_entry *last_touch_events_proc;
 	struct last_touch_event *last_touch_events;
+        bool gesture_single_tap_pending;
+        bool gesture_double_tap_pending;
 };
 
 struct xiaomi_touch *xiaomi_touch_dev_get(int minor);
