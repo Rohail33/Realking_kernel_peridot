@@ -3,6 +3,11 @@
 static struct xiaomi_touch_pdata *touch_pdata;
 static struct xiaomi_touch *xiaomi_touch_device;
 
+struct touch_mode_attribute {
+	struct device_attribute dev_attr;
+	int touch_mode;
+};
+
 #define RAW_SIZE (PAGE_SIZE * 12)
 
 static int xiaomi_touch_dev_open(struct inode *inode, struct file *file)
@@ -300,6 +305,60 @@ int xiaomitouch_register_modedata(int touchId,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xiaomitouch_register_modedata);
+
+static ssize_t touch_mode_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct xiaomi_touch_pdata *pdata = dev_get_drvdata(dev);
+	struct touch_mode_attribute *mode_attribute =
+		container_of(attr, struct touch_mode_attribute, dev_attr);
+	struct xiaomi_touch_interface *touch_data;
+
+	if (!pdata || !pdata->touch_data[0])
+		return -EFAULT;
+
+	touch_data = pdata->touch_data[0];
+	if (!touch_data->getModeValue)
+		return -EFAULT;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			touch_data->getModeValue(mode_attribute->touch_mode,
+						  GET_CUR_VALUE));
+}
+
+static ssize_t touch_mode_store(struct device *dev,
+				struct device_attribute *attr, const char *buf,
+				size_t count)
+{
+	struct xiaomi_touch_pdata *pdata = dev_get_drvdata(dev);
+	struct touch_mode_attribute *mode_attribute =
+		container_of(attr, struct touch_mode_attribute, dev_attr);
+	struct xiaomi_touch_interface *touch_data;
+	unsigned int value;
+
+	if (kstrtouint(buf, 10, &value))
+		return -EINVAL;
+
+	if (!pdata || !pdata->touch_data[0])
+		return -EFAULT;
+
+	touch_data = pdata->touch_data[0];
+	if (!touch_data->setModeValue)
+		return -EFAULT;
+
+	touch_data->setModeValue(mode_attribute->touch_mode, value);
+
+	return count;
+}
+
+#define TOUCH_MODE_ATTR_RW(_name, _mode)                               \
+struct touch_mode_attribute touch_mode_attr_##_name = {                \
+	.dev_attr = __ATTR(_name, 0644, touch_mode_show,              \
+			   touch_mode_store),                          \
+	.touch_mode = _mode,                                           \
+}
+
+TOUCH_MODE_ATTR_RW(bump_sample_rate, TOUCH_MODE_REPORT_RATE);
 
 int update_palm_sensor_value(int value)
 {
@@ -1441,6 +1500,7 @@ static struct attribute *touch_attr_group[] = {
         &dev_attr_resolution_factor.attr,
 	&dev_attr_gesture_double_tap_enabled.attr,
 	&dev_attr_gesture_double_tap_state.attr,
+        &touch_mode_attr_bump_sample_rate.dev_attr.attr,
 	NULL,
 };
 

@@ -42,13 +42,13 @@ enum MODE_TYPE {
 	Touch_Power_Status = 19,
 	Touch_Fod_Longpress_Gesture,
 	Touch_Singletap_Gesture,
+        TOUCH_MODE_REPORT_RATE,
 	Touch_Mode_NUM,
 	THP_LOCK_SCAN_MODE = THP_CMD_BASE + 0,
 	THP_FOD_DOWNUP_CTL = THP_CMD_BASE + 1,
 	THP_SELF_CAP_SCAN = THP_CMD_BASE + 2,
 	THP_REPORT_POINT_SWITCH = THP_CMD_BASE + 3,
 	THP_HAL_INIT_READY = THP_CMD_BASE + 4,
-        TOUCH_MODE_REPORT_RATE,
 };
 
 #define TOUCH_MAGIC 'T'
