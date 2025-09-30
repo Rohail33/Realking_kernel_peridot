@@ -2,7 +2,7 @@
 #include "xiaomi_touch.h"
 static struct xiaomi_touch_pdata *touch_pdata;
 static struct xiaomi_touch *xiaomi_touch_device;
-static atomic_t fod_finger_state;
+static atomic_t fod_finger_state = ATOMIC_INIT(0);
 
 struct touch_mode_attribute {
 	struct device_attribute dev_attr;
