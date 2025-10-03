@@ -1,0 +1,10 @@
+/dts-v1/;
+/plugin/;
+#include "shennong-sde-display.dtsi"
+/ {
+	model = "Qualcomm Technologies, Inc. Pineapple MTP";
+	compatible = "qcom,pineapple-mtp", "qcom,pineapple", "qcom,pineapplep-mtp", "qcom,pineapplep", "qcom,mtp";
+	qcom,msm-id = <557 0x10000>, <557 0x20000>, <577 0x10000>, <577 0x20000>;
+	qcom,board-id = <0x8 0>;
+	xiaomi,miboard-id = <0x1 0>;
+};

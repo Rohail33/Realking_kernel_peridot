@@ -1,0 +1,1764 @@
+&mdss_mdp {
+	dsi_n2_42_02_0a_p11_dsc_cmd: qcom,mdss_dsi_n2_42_02_0a_p11_dsc_cmd {
+		qcom,mdss-dsi-panel-name = "xiaomi n2 42 02 0a cmd mode dsc dsi panel";
+		qcom,mdss-dsi-panel-type = "dsi_cmd_mode";
+		qcom,mdss-dsi-virtual-channel-id = <0>;
+		qcom,mdss-dsi-stream = <0>;
+		qcom,mdss-dsi-bpp = <30>;
+		qcom,mdss-dsi-color-order = "rgb_swap_rgb";
+		qcom,mdss-dsi-underflow-color = <0xff>;
+		qcom,mdss-dsi-border-color = <0>;
+		qcom,dsi-ctrl-num = <0>;
+		qcom,dsi-phy-num = <0>;
+
+		qcom,mdss-dsi-traffic-mode = "burst_mode";
+		qcom,mdss-dsi-lane-map = "lane_map_0123";
+		qcom,mdss-dsi-bllp-eof-power-mode;
+		qcom,mdss-dsi-bllp-power-mode;
+		qcom,mdss-dsi-lane-0-state;
+		qcom,mdss-dsi-lane-1-state;
+		qcom,mdss-dsi-lane-2-state;
+		qcom,mdss-dsi-lane-3-state;
+		qcom,mdss-dsi-dma-trigger = "trigger_sw";
+		qcom,mdss-dsi-mdp-trigger = "none";
+		qcom,mdss-dsi-reset-sequence =<1 1>, <0 1>, <1 10>;
+		qcom,mdss-pan-physical-width-dimension = <701>;
+		qcom,mdss-pan-physical-height-dimension = <1558>;
+		qcom,mdss-dsi-te-pin-select = <1>;
+		qcom,mdss-dsi-wr-mem-start = <0x2c>;
+		qcom,mdss-dsi-wr-mem-continue = <0x3c>;
+		qcom,mdss-dsi-te-dcs-command = <1>;
+		qcom,mdss-dsi-te-check-enable;
+		qcom,mdss-dsi-te-using-te-pin;
+		qcom,mdss-dsi-tx-eot-append;
+		qcom,mdss-dsi-lp11-init;
+
+		qcom,mdss-dsi-bl-inverted-dbv;
+		qcom,mdss-dsi-panel-dimming-enabled;
+		qcom,bl-update-flag = "delay_until_first_frame";
+
+		qcom,mdss-dsi-panel-hdr-enabled;
+		qcom,mdss-dsi-panel-hdr-color-primaries = <14500 15500 32000
+			17000 15500 30000 8000 3000>;
+		qcom,mdss-dsi-panel-peak-brightness = <12500000>;
+		qcom,mdss-dsi-panel-blackness-level = <3230>;
+
+		qcom,mdss-dsi-dma-schedule-line = <1>;
+		qcom,mdss-dsi-dma-schedule-window = <50>;
+
+		/* IRQF_ONESHOT | IRQF_TRIGGER_HIGH */
+		mi,esd-err-irq-gpio = <&tlmm 87 0x2004>;
+		mi,panel-id = <0x00004E32 0x00420200>;
+		qcom,esd-check-enabled;
+		qcom,mdss-dsi-panel-status-check-mode = "reg_read";
+		qcom,mdss-dsi-panel-status-command = [06 01 00 01 00 00 01 91];
+		qcom,mdss-dsi-panel-status-command-state = "dsi_hs_mode";
+		qcom,mdss-dsi-panel-status-value = <0xAB 0xA8>;
+		qcom,mdss-dsi-panel-status-read-length = <2>;
+
+		mi,local-hbm-enabled;
+
+		mi,local-hbm-ui-ready-delay-num-frame = <4>; /* 4 frame */
+		mi,fod-low-brightness-clone-threshold = <411>;
+		mi,fod-low-brightness-lux-threshold = <1>;
+		mi,need-fod-animal-in-normal-enabled;
+		mi,flatmode-default-on-enabled;
+
+		mi,panel-on-dimming-delay = <120>;
+		mi,max-brightness-clone = <16383>;
+
+		mi,mdss-dsi-fac-bl-max-level = <2866>;
+		mi,mdss-fac-brightness-max-level = <2866>;
+		mi,doze-hbm-dbv-level = <250>;
+		mi,doze-lbm-dbv-level = <25>;
+
+		mi,mdss-dsi-panel-wp-read-command = [06 01 00 01 00 00 01 A3];
+		mi,mdss-dsi-panel-wp-read-command-state = "dsi_hs_mode";
+		mi,mdss-dsi-panel-wp-read-length = <8>;
+
+		mi,flatmode-status-check-enabled;
+		mi,mdss-dsi-panel-flatmode-status-command = [
+			06 01 00 01 00 00 01 5F
+		];
+		mi,mdss-dsi-panel-flatmode-status-command-state = "dsi_hs_mode";
+		mi,mdss-dsi-panel-flatmode-status-read-length = <1>;
+		mi,mdss-dsi-panel-flatmode-on-status-value = <0x00>;
+
+		mi,mdss-dsi-panel-cell-id-read-command = [06 01 00 01 00 00 01 EB];
+		mi,mdss-dsi-panel-cell-id-read-pre-tx-command = [39 00 00 40 00 00 06 F0 55 AA 52 08 00];
+		mi,mdss-dsi-panel-cell-id-read-pre-tx-command-state = "dsi_hs_mode";
+		mi,mdss-dsi-panel-cell-id-read-command-state = "dsi_hs_mode";
+		mi,mdss-dsi-panel-cell-id-read-length = <13>;
+
+		qcom,mdss-dsi-display-timings {
+			timing@wqhd_normal_60hz_index_00 {
+				#include "dsi-panel-n2-42-02-0a-p11-dsc-cmd-common.dtsi"
+				cell-index = <0>;
+				qcom,mdss-dsi-panel-framerate = <60>;
+
+				mi,mdss-dsi-local-hbm-off-to-normal-command = [
+					39 00 00 40 00 00 02 53 20
+					39 00 00 40 00 00 01 86
+					39 00 00 40 00 00 02 87 20
+					39 00 00 00 00 00 03 51 00 00
+					15 00 00 40 00 00 02 26 01
+					15 00 00 40 00 00 02 2F 00
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 01 01 00 01 01 01 00 00
+					/* TE 60HZ */
+					15 00 00 40 00 00 02 BC 20
+					15 00 00 00 00 00 02 2C 00
+				];
+				mi,mdss-dsi-local-hbm-off-to-normal-command-update = <0x51 3 2>;
+				mi,mdss-dsi-local-hbm-off-to-normal-command-state = "dsi_hs_mode";
+
+				qcom,mdss-dsi-timing-switch-command = [
+					15 00 00 40 00 00 02 26 01 /* dynamic update,index 0 */
+					15 00 00 40 00 00 02 2F 00
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 01 01 00 01 01 01 00 00
+					/* TE 60HZ */
+					15 00 00 40 00 00 02 BC 20
+					15 00 00 00 00 00 02 2C 00
+				];
+				qcom,mdss-dsi-timing-switch-command-update = <0x26 0 1>;
+				qcom,mdss-dsi-timing-switch-command-state = "dsi_hs_mode";
+
+				qcom,mdss-dsi-on-command = [
+					/* Crosstalk optimization */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 08
+					15 00 00 40 00 00 02 6F 06
+					39 00 00 40 00 00 07 BF 04 08 0E 16 1A 20
+					15 00 00 40 00 00 02 6F 0C
+					39 00 00 40 00 00 07 BF 04 08 0E 16 1A 20
+					/* PCD_DATA=GND */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 06
+					39 00 00 40 00 00 06 B1 1C 36 08 37 38
+					39 00 00 40 00 00 06 B7 1C 36 08 37 38
+					/* AOD EM pulse width */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					39 00 00 40 00 00 0A E1 01 00 99 23 8A 00 00 00 00
+					/* DVDD Strong */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 01
+					15 00 00 40 00 00 02 6F 01
+					39 00 00 40 00 00 04 C5 0B 0B 0B
+					/* OSC trim */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 01
+					39 00 00 00 00 00 2A C3 99 04 20 15 FF 00 04 20 0E FF 00 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+					/* Cover ESD */
+					39 00 00 40 00 00 05 FF AA 55 A5 81
+					15 00 00 40 00 00 02 6F 1D
+					15 00 00 40 00 00 02 FB 6F
+					/* FIX PWM&DC FLASH */
+					15 00 00 40 00 00 02 6F 0F
+					15 00 00 40 00 00 02 F5 40
+					/* Rising/Falling time */
+					39 00 00 40 00 00 05 FF AA 55 A5 80
+					15 00 00 40 00 00 02 6F 1B
+					15 00 00 40 00 00 02 F4 55
+					15 00 00 40 00 00 02 6F 06
+					15 00 00 40 00 00 02 F3 DC
+					15 00 00 40 00 00 02 6F 18
+					15 00 00 40 00 00 02 F8 19
+					15 00 00 40 00 00 02 6F 02
+					15 00 00 40 00 00 02 F5 10
+					/* Crosstalk optimization */
+					15 00 00 40 00 00 02 6F 0F
+					15 00 00 40 00 00 02 FC 00
+					/* Source Off */
+					15 00 00 40 00 00 02 6F 0A
+					39 00 00 40 00 00 07 F6 56 56 56 54 57 50
+					/* DSC Setting */
+					39 00 00 40 00 00 03 90 03 03
+					39 00 00 40 00 00 13 91 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 93 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 95 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 97 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					/* CASET/RASET Setting */
+					39 00 00 40 00 00 05 2A 00 00 05 9F
+					39 00 00 40 00 00 05 2B 00 00 0C 7F
+					/* TE ON */
+					15 00 00 40 00 00 02 35 00
+					39 00 00 40 00 00 05 3B 00 14 00 2C
+					15 00 00 40 00 00 02 5A 00
+					/* BACKLIGHT ON */
+					39 00 00 00 00 00 07 51 00 00 00 00 00 00
+					/* Dimming Set */
+					15 00 00 40 00 00 02 53 20
+					15 00 00 40 00 00 02 9C 01
+					/*GIR ON*/
+					15 00 00 40 00 00 02 5F 00
+					/*ESD Error flag  Active high*/
+					39 00 00 40 00 00 06 F0 55 AA 52 08 05
+					15 00 00 40 00 00 02 6F 02
+					15 00 00 40 00 00 02 B0 0F
+					39 00 00 40 00 00 0A C3 86 00 81 00 00 00 80 00 0A
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					39 00 00 40 00 00 05 BE 47 CF 4C 4B
+					15 00 00 40 00 00 02 6F 09
+					15 00 00 40 00 00 02 BE 2D
+					/*60HZ*/
+					15 00 00 40 00 00 02 26 01
+					15 00 00 40 00 00 02 2F 00
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 01 01 00 01 01 01 00 00
+					/* TE 60HZ */
+					15 00 00 40 00 00 02 BC 20
+					15 00 00 40 00 00 02 2C 00
+					/* Sleep Out */
+					05 00 00 00 78 00 01 11
+					15 00 00 40 00 00 02 9B 00
+					39 00 00 40 00 00 06 F0 55 AA 52 08 02
+					15 00 00 40 00 00 02 CC 10
+					/* Display On */
+					05 00 00 00 00 00 01 29
+				];
+				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+			};
+
+			timing@wqhd_normal_120hz_index_01 {
+				#include "dsi-panel-n2-42-02-0a-p11-dsc-cmd-common.dtsi"
+				cell-index = <1>;
+				qcom,mdss-dsi-panel-framerate = <120>;
+
+				mi,mdss-dsi-local-hbm-off-to-normal-command = [
+					39 00 00 40 00 00 02 53 20
+					39 00 00 40 00 00 01 86
+					39 00 00 40 00 00 02 87 20
+					39 00 00 00 00 00 03 51 00 00
+				];
+				mi,mdss-dsi-local-hbm-off-to-normal-command-update = <0x51 3 2>;
+				mi,mdss-dsi-local-hbm-off-to-normal-command-state = "dsi_hs_mode";
+
+				qcom,mdss-dsi-timing-switch-command = [
+					15 00 00 40 00 00 02 26 00 /* dynamic update,index 0 */
+					15 00 00 40 00 00 02 2F 00 /* dynamic update,index 1 */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					/* TE 120HZ */
+					15 00 00 40 00 00 02 BC 00
+					15 00 00 00 00 00 02 2C 00
+				];
+				qcom,mdss-dsi-timing-switch-command-update = <0x26 0 1>, <0x2F 1 1>;
+				qcom,mdss-dsi-timing-switch-command-state = "dsi_hs_mode";
+
+				qcom,mdss-dsi-on-command = [
+					/* Crosstalk optimization */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 08
+					15 00 00 40 00 00 02 6F 06
+					39 00 00 40 00 00 07 BF 04 08 0E 16 1A 20
+					15 00 00 40 00 00 02 6F 0C
+					39 00 00 40 00 00 07 BF 04 08 0E 16 1A 20
+					/* PCD_DATA=GND */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 06
+					39 00 00 40 00 00 06 B1 1C 36 08 37 38
+					39 00 00 40 00 00 06 B7 1C 36 08 37 38
+					/* AOD EM pulse width */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					39 00 00 40 00 00 0A E1 01 00 99 23 8A 00 00 00 00
+					/* DVDD Strong */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 01
+					15 00 00 40 00 00 02 6F 01
+					39 00 00 40 00 00 04 C5 0B 0B 0B
+					/* OSC trim */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 01
+					39 00 00 00 00 00 2A C3 99 04 20 15 FF 00 04 20 0E FF 00 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+					/* Cover ESD */
+					39 00 00 40 00 00 05 FF AA 55 A5 81
+					15 00 00 40 00 00 02 6F 1D
+					15 00 00 40 00 00 02 FB 6F
+					/* FIX PWM&DC FLASH */
+					15 00 00 40 00 00 02 6F 0F
+					15 00 00 40 00 00 02 F5 40
+					/* Rising/Falling time */
+					39 00 00 40 00 00 05 FF AA 55 A5 80
+					15 00 00 40 00 00 02 6F 1B
+					15 00 00 40 00 00 02 F4 55
+					15 00 00 40 00 00 02 6F 06
+					15 00 00 40 00 00 02 F3 DC
+					15 00 00 40 00 00 02 6F 18
+					15 00 00 40 00 00 02 F8 19
+					15 00 00 40 00 00 02 6F 02
+					15 00 00 40 00 00 02 F5 10
+					/* Crosstalk optimization */
+					15 00 00 40 00 00 02 6F 0F
+					15 00 00 40 00 00 02 FC 00
+					/* Source Off */
+					15 00 00 40 00 00 02 6F 0A
+					39 00 00 40 00 00 07 F6 56 56 56 54 57 50
+					/* DSC Setting */
+					39 00 00 40 00 00 03 90 03 03
+					39 00 00 40 00 00 13 91 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 93 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 95 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 97 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					/* CASET/RASET Setting */
+					39 00 00 40 00 00 05 2A 00 00 05 9F
+					39 00 00 40 00 00 05 2B 00 00 0C 7F
+					/* TE ON */
+					15 00 00 40 00 00 02 35 00
+					39 00 00 40 00 00 05 3B 00 14 00 2C
+					15 00 00 40 00 00 02 5A 00
+					/* OSC trim */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 01
+					39 00 00 00 00 00 2A C3 99 04 20 15 FF 00 04 20 0E FF 00 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+					/* BACKLIGHT ON */
+					39 00 00 00 00 00 07 51 00 00 00 00 00 00
+					/* Dimming Set */
+					15 00 00 40 00 00 02 53 20
+					15 00 00 40 00 00 02 9C 01
+					/*GIR ON*/
+					15 00 00 40 00 00 02 5F 00
+					/*ESD Error flag  Active high*/
+					39 00 00 40 00 00 06 F0 55 AA 52 08 05
+					15 00 00 40 00 00 02 6F 02
+					15 00 00 40 00 00 02 B0 0F
+					39 00 00 40 00 00 0A C3 86 00 81 00 00 00 80 00 0A
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					39 00 00 40 00 00 05 BE 47 CF 4C 4B
+					15 00 00 40 00 00 02 6F 09
+					15 00 00 40 00 00 02 BE 2D
+					/*120HZ*/
+					15 00 00 40 00 00 02 26 00
+					15 00 00 40 00 00 02 2F 00
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					/* TE 120HZ */
+					15 00 00 40 00 00 02 BC 00
+					15 00 00 40 00 00 02 2C 00
+					/* Sleep Out */
+					05 00 00 00 78 00 01 11
+					15 00 00 40 00 00 02 9B 00
+					39 00 00 40 00 00 06 F0 55 AA 52 08 02
+					15 00 00 40 00 00 02 CC 10
+					/* Display On */
+					05 00 00 00 00 00 01 29
+				];
+				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+			};
+
+			timing@wqhd_normal_90hz_index_02 {
+				#include "dsi-panel-n2-42-02-0a-p11-dsc-cmd-common.dtsi"
+				cell-index = <2>;
+				qcom,mdss-dsi-panel-framerate = <90>;
+
+				mi,mdss-dsi-local-hbm-off-to-normal-command = [
+					39 00 00 60 00 00 02 53 20
+					39 00 00 60 00 00 01 86
+					39 00 00 60 00 00 02 87 20
+					39 00 00 20 00 00 03 51 00 00
+					15 00 00 60 00 00 02 2F 01
+					39 00 00 60 00 00 06 F0 55 AA 52 08 00
+					15 00 00 20 00 00 02 BC 00
+				];
+				mi,mdss-dsi-local-hbm-off-to-normal-command-update = <0x51 3 2>;
+				mi,mdss-dsi-local-hbm-off-to-normal-command-state = "dsi_hs_mode";
+
+				qcom,mdss-dsi-timing-switch-command = [
+					15 00 00 60 00 00 02 2F 01 /* dynamic update,index 0 */
+					39 00 00 60 00 00 06 F0 55 AA 52 08 00
+					15 00 00 20 00 00 02 BC 00
+				];
+				qcom,mdss-dsi-timing-switch-command-update = <0x2F 0 1>;
+				qcom,mdss-dsi-timing-switch-command-state = "dsi_hs_mode";
+
+				qcom,mdss-dsi-on-command = [
+					/* Crosstalk optimization */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 08
+					15 00 00 40 00 00 02 6F 06
+					39 00 00 40 00 00 07 BF 04 08 0E 16 1A 20
+					15 00 00 40 00 00 02 6F 0C
+					39 00 00 40 00 00 07 BF 04 08 0E 16 1A 20
+					/* PCD_DATA=GND */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 06
+					39 00 00 40 00 00 06 B1 1C 36 08 37 38
+					39 00 00 40 00 00 06 B7 1C 36 08 37 38
+					/* AOD EM pulse width */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					39 00 00 40 00 00 0A E1 01 00 99 23 8A 00 00 00 00
+					/* DVDD Strong */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 01
+					15 00 00 40 00 00 02 6F 01
+					39 00 00 40 00 00 04 C5 0B 0B 0B
+					/* OSC trim */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 01
+					39 00 00 00 00 00 2A C3 99 04 20 15 FF 00 04 20 0E FF 00 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+					/* Cover ESD */
+					39 00 00 40 00 00 05 FF AA 55 A5 81
+					15 00 00 40 00 00 02 6F 1D
+					15 00 00 40 00 00 02 FB 6F
+					/* FIX PWM&DC FLASH */
+					15 00 00 40 00 00 02 6F 0F
+					15 00 00 40 00 00 02 F5 40
+					/* Rising/Falling time */
+					39 00 00 40 00 00 05 FF AA 55 A5 80
+					15 00 00 40 00 00 02 6F 1B
+					15 00 00 40 00 00 02 F4 55
+					15 00 00 40 00 00 02 6F 06
+					15 00 00 40 00 00 02 F3 DC
+					15 00 00 40 00 00 02 6F 18
+					15 00 00 40 00 00 02 F8 19
+					15 00 00 40 00 00 02 6F 02
+					15 00 00 40 00 00 02 F5 10
+					/* Crosstalk optimization */
+					15 00 00 40 00 00 02 6F 0F
+					15 00 00 40 00 00 02 FC 00
+					/* Source Off */
+					15 00 00 40 00 00 02 6F 0A
+					39 00 00 40 00 00 07 F6 56 56 56 54 57 50
+					/* DSC Setting */
+					39 00 00 40 00 00 03 90 03 03
+					39 00 00 40 00 00 13 91 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 93 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 95 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 97 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					/* CASET/RASET Setting */
+					39 00 00 40 00 00 05 2A 00 00 05 9F
+					39 00 00 40 00 00 05 2B 00 00 0C 7F
+					/* TE ON */
+					15 00 00 40 00 00 02 35 00
+					39 00 00 40 00 00 05 3B 00 14 00 2C
+					15 00 00 40 00 00 02 5A 00
+					/* OSC trim */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 01
+					39 00 00 00 00 00 2A C3 99 04 20 15 FF 00 04 20 0E FF 00 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+					/* BACKLIGHT ON */
+					39 00 00 00 00 00 07 51 00 00 00 00 00 00
+					/* Dimming Set */
+					15 00 00 40 00 00 02 53 20
+					15 00 00 40 00 00 02 9C 01
+					/*GIR ON*/
+					15 00 00 40 00 00 02 5F 00
+					/*ESD Error flag  Active high*/
+					39 00 00 40 00 00 06 F0 55 AA 52 08 05
+					15 00 00 40 00 00 02 6F 02
+					15 00 00 40 00 00 02 B0 0F
+					39 00 00 40 00 00 0A C3 86 00 81 00 00 00 80 00 0A
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					39 00 00 40 00 00 05 BE 47 CF 4C 4B
+					15 00 00 40 00 00 02 6F 09
+					15 00 00 40 00 00 02 BE 2D
+					/*90HZ*/
+					15 00 00 40 00 00 02 2F 01
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 BC 00
+					/* Sleep Out */
+					05 00 00 00 78 00 01 11
+					15 00 00 40 00 00 02 9B 00
+					39 00 00 40 00 00 06 F0 55 AA 52 08 02
+					15 00 00 40 00 00 02 CC 10
+					/* Display On */
+					05 00 00 00 00 00 01 29
+				];
+				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+			};
+
+			timing@wqhd_normal_40hz_index_03 {
+				#include "dsi-panel-n2-42-02-0a-p11-dsc-cmd-common.dtsi"
+				cell-index = <3>;
+				qcom,mdss-dsi-panel-framerate = <40>;
+
+				mi,mdss-dsi-local-hbm-off-to-normal-command = [
+					39 00 00 40 00 00 02 53 20
+					39 00 00 40 00 00 01 86
+					39 00 00 40 00 00 02 87 20
+					39 00 00 00 00 00 03 51 00 00
+					15 00 00 40 00 00 02 26 01
+					15 00 00 40 00 00 02 2F 00
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 01 01 00 01 02 02 00 00
+					/* TE 40HZ */
+					15 00 00 40 00 00 02 BC 40
+					15 00 00 00 00 00 02 2C 00
+				];
+				mi,mdss-dsi-local-hbm-off-to-normal-command-update = <0x51 3 2>;
+				mi,mdss-dsi-local-hbm-off-to-normal-command-state = "dsi_hs_mode";
+
+				qcom,mdss-dsi-timing-switch-command = [
+					15 00 00 40 00 00 02 26 01 /* dynamic update,index 0 */
+					15 00 00 40 00 00 02 2F 00
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 01 01 00 01 02 02 00 00 /* dynamic update,index 5 */
+					/* TE 40HZ */
+					15 00 00 40 00 00 02 BC 40
+					15 00 00 00 00 00 02 2C 00
+                ];
+				qcom,mdss-dsi-timing-switch-command-update = <0x26 0 1>, <0xBA 5 9>;
+				qcom,mdss-dsi-timing-switch-command-state = "dsi_hs_mode";
+
+				qcom,mdss-dsi-on-command = [
+					/* Crosstalk optimization */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 08
+					15 00 00 40 00 00 02 6F 06
+					39 00 00 40 00 00 07 BF 04 08 0E 16 1A 20
+					15 00 00 40 00 00 02 6F 0C
+					39 00 00 40 00 00 07 BF 04 08 0E 16 1A 20
+					/* PCD_DATA=GND */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 06
+					39 00 00 40 00 00 06 B1 1C 36 08 37 38
+					39 00 00 40 00 00 06 B7 1C 36 08 37 38
+					/* AOD EM pulse width */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					39 00 00 40 00 00 0A E1 01 00 99 23 8A 00 00 00 00
+					/* DVDD Strong */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 01
+					15 00 00 40 00 00 02 6F 01
+					39 00 00 40 00 00 04 C5 0B 0B 0B
+					/* OSC trim */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 01
+					39 00 00 00 00 00 2A C3 99 04 20 15 FF 00 04 20 0E FF 00 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+					/* Cover ESD */
+					39 00 00 40 00 00 05 FF AA 55 A5 81
+					15 00 00 40 00 00 02 6F 1D
+					15 00 00 40 00 00 02 FB 6F
+					/* FIX PWM&DC FLASH */
+					15 00 00 40 00 00 02 6F 0F
+					15 00 00 40 00 00 02 F5 40
+					/* Rising/Falling time */
+					39 00 00 40 00 00 05 FF AA 55 A5 80
+					15 00 00 40 00 00 02 6F 1B
+					15 00 00 40 00 00 02 F4 55
+					15 00 00 40 00 00 02 6F 06
+					15 00 00 40 00 00 02 F3 DC
+					15 00 00 40 00 00 02 6F 18
+					15 00 00 40 00 00 02 F8 19
+					15 00 00 40 00 00 02 6F 02
+					15 00 00 40 00 00 02 F5 10
+					/* Crosstalk optimization */
+					15 00 00 40 00 00 02 6F 0F
+					15 00 00 40 00 00 02 FC 00
+					/* Source Off */
+					15 00 00 40 00 00 02 6F 0A
+					39 00 00 40 00 00 07 F6 56 56 56 54 57 50
+					/* DSC Setting */
+					39 00 00 40 00 00 03 90 03 03
+					39 00 00 40 00 00 13 91 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 93 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 95 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 97 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					/* CASET/RASET Setting */
+					39 00 00 40 00 00 05 2A 00 00 05 9F
+					39 00 00 40 00 00 05 2B 00 00 0C 7F
+					/* TE ON */
+					15 00 00 40 00 00 02 35 00
+					39 00 00 40 00 00 05 3B 00 14 00 2C
+					15 00 00 40 00 00 02 5A 00
+					/* OSC trim */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 01
+					39 00 00 00 00 00 2A C3 99 04 20 15 FF 00 04 20 0E FF 00 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+					/* BACKLIGHT ON */
+					39 00 00 00 00 00 07 51 00 00 00 00 00 00
+					/* Dimming Set */
+					15 00 00 40 00 00 02 53 20
+					15 00 00 40 00 00 02 9C 01
+					/*GIR ON*/
+					15 00 00 40 00 00 02 5F 00
+					/*ESD Error flag  Active high*/
+					39 00 00 40 00 00 06 F0 55 AA 52 08 05
+					15 00 00 40 00 00 02 6F 02
+					15 00 00 40 00 00 02 B0 0F
+					39 00 00 40 00 00 0A C3 86 00 81 00 00 00 80 00 0A
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					39 00 00 40 00 00 05 BE 47 CF 4C 4B
+					15 00 00 40 00 00 02 6F 09
+					15 00 00 40 00 00 02 BE 2D
+					/*40HZ*/
+					15 00 00 40 00 00 02 26 01
+					15 00 00 40 00 00 02 2F 00
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 01 01 00 01 02 02 00 00
+					/* TE 40HZ */
+					15 00 00 40 00 00 02 BC 40
+					15 00 00 40 00 00 02 2C 00
+					/* Sleep Out */
+					05 00 00 00 78 00 01 11
+					15 00 00 40 00 00 02 9B 00
+					39 00 00 40 00 00 06 F0 55 AA 52 08 02
+					15 00 00 40 00 00 02 CC 10
+					/* Display On */
+					05 00 00 00 00 00 01 29
+				];
+				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+			};
+
+			timing@wqhd_normal_30hz_index_04 {
+				#include "dsi-panel-n2-42-02-0a-p11-dsc-cmd-common.dtsi"
+				cell-index = <4>;
+				qcom,mdss-dsi-panel-framerate = <30>;
+
+				mi,mdss-dsi-local-hbm-off-to-normal-command = [
+					39 00 00 40 00 00 02 53 20
+					39 00 00 40 00 00 01 86
+					39 00 00 40 00 00 02 87 20
+					39 00 00 00 00 00 03 51 00 00
+					15 00 00 40 00 00 02 26 01
+					15 00 00 40 00 00 02 2F 00
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 01 01 00 01 03 03 00 00
+					/* TE 30HZ */
+					15 00 00 40 00 00 02 BC 60
+					15 00 00 00 00 00 02 2C 00
+				];
+				mi,mdss-dsi-local-hbm-off-to-normal-command-update = <0x51 3 2>;
+				mi,mdss-dsi-local-hbm-off-to-normal-command-state = "dsi_hs_mode";
+
+				qcom,mdss-dsi-timing-switch-command = [
+					15 00 00 40 00 00 02 26 01 /* dynamic update,index 0 */
+					15 00 00 40 00 00 02 2F 00
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 01 01 00 01 03 03 00 00 /* dynamic update,index 5 */
+					/* TE 30HZ */
+					15 00 00 40 00 00 02 BC 60
+					15 00 00 00 00 00 02 2C 00
+				];
+				qcom,mdss-dsi-timing-switch-command-update = <0x26 0 1>, <0xBA 5 9>;
+				qcom,mdss-dsi-timing-switch-command-state = "dsi_hs_mode";
+
+				qcom,mdss-dsi-on-command = [
+					/* Crosstalk optimization */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 08
+					15 00 00 40 00 00 02 6F 06
+					39 00 00 40 00 00 07 BF 04 08 0E 16 1A 20
+					15 00 00 40 00 00 02 6F 0C
+					39 00 00 40 00 00 07 BF 04 08 0E 16 1A 20
+					/* PCD_DATA=GND */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 06
+					39 00 00 40 00 00 06 B1 1C 36 08 37 38
+					39 00 00 40 00 00 06 B7 1C 36 08 37 38
+					/* AOD EM pulse width */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					39 00 00 40 00 00 0A E1 01 00 99 23 8A 00 00 00 00
+					/* DVDD Strong */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 01
+					15 00 00 40 00 00 02 6F 01
+					39 00 00 40 00 00 04 C5 0B 0B 0B
+					/* OSC trim */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 01
+					39 00 00 00 00 00 2A C3 99 04 20 15 FF 00 04 20 0E FF 00 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+					/* Cover ESD */
+					39 00 00 40 00 00 05 FF AA 55 A5 81
+					15 00 00 40 00 00 02 6F 1D
+					15 00 00 40 00 00 02 FB 6F
+					/* FIX PWM&DC FLASH */
+					15 00 00 40 00 00 02 6F 0F
+					15 00 00 40 00 00 02 F5 40
+					/* Rising/Falling time */
+					39 00 00 40 00 00 05 FF AA 55 A5 80
+					15 00 00 40 00 00 02 6F 1B
+					15 00 00 40 00 00 02 F4 55
+					15 00 00 40 00 00 02 6F 06
+					15 00 00 40 00 00 02 F3 DC
+					15 00 00 40 00 00 02 6F 18
+					15 00 00 40 00 00 02 F8 19
+					15 00 00 40 00 00 02 6F 02
+					15 00 00 40 00 00 02 F5 10
+					/* Crosstalk optimization */
+					15 00 00 40 00 00 02 6F 0F
+					15 00 00 40 00 00 02 FC 00
+					/* Source Off */
+					15 00 00 40 00 00 02 6F 0A
+					39 00 00 40 00 00 07 F6 56 56 56 54 57 50
+					/* DSC Setting */
+					39 00 00 40 00 00 03 90 03 03
+					39 00 00 40 00 00 13 91 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 93 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 95 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 97 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					/* CASET/RASET Setting */
+					39 00 00 40 00 00 05 2A 00 00 05 9F
+					39 00 00 40 00 00 05 2B 00 00 0C 7F
+					/* TE ON */
+					15 00 00 40 00 00 02 35 00
+					39 00 00 40 00 00 05 3B 00 14 00 2C
+					15 00 00 40 00 00 02 5A 00
+					/* OSC trim */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 01
+					39 00 00 00 00 00 2A C3 99 04 20 15 FF 00 04 20 0E FF 00 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+					/* BACKLIGHT ON */
+					39 00 00 00 00 00 07 51 00 00 00 00 00 00
+					/* Dimming Set */
+					15 00 00 40 00 00 02 53 20
+					15 00 00 40 00 00 02 9C 01
+					/*GIR ON*/
+					15 00 00 40 00 00 02 5F 00
+					/*ESD Error flag  Active high*/
+					39 00 00 40 00 00 06 F0 55 AA 52 08 05
+					15 00 00 40 00 00 02 6F 02
+					15 00 00 40 00 00 02 B0 0F
+					39 00 00 40 00 00 0A C3 86 00 81 00 00 00 80 00 0A
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					39 00 00 40 00 00 05 BE 47 CF 4C 4B
+					15 00 00 40 00 00 02 6F 09
+					15 00 00 40 00 00 02 BE 2D
+					/*30HZ*/
+					15 00 00 40 00 00 02 26 01
+					15 00 00 40 00 00 02 2F 00
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 01 01 00 01 03 03 00 00
+					/* TE 30HZ */
+					15 00 00 40 00 00 02 BC 60
+					15 00 00 40 00 00 02 2C 00
+					/* Sleep Out */
+					05 00 00 00 78 00 01 11
+					15 00 00 40 00 00 02 9B 00
+					39 00 00 40 00 00 06 F0 55 AA 52 08 02
+					15 00 00 40 00 00 02 CC 10
+					/* Display On */
+					05 00 00 00 00 00 01 29
+				];
+				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+			};
+
+			timing@wqhd_diff_60_to_24hz_index_05 {
+				#include "dsi-panel-n2-42-02-0a-p11-dsc-cmd-common.dtsi"
+				cell-index = <5>;
+				qcom,mdss-dsi-panel-framerate = <60>;
+
+				mi,mdss-dsi-local-hbm-off-to-normal-command = [
+					39 00 00 40 00 00 02 53 20
+					39 00 00 40 00 00 01 86
+					39 00 00 40 00 00 02 87 20
+					39 00 00 00 00 00 03 51 00 00
+					15 00 00 40 00 00 02 26 01
+					15 00 00 40 00 00 02 2F 00
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 04 04 00 01 04 04 00 00
+					/* TE 120HZ */
+					15 00 00 40 00 00 02 BC 20
+					15 00 00 00 00 00 02 2C 00
+				];
+				mi,mdss-dsi-local-hbm-off-to-normal-command-update = <0x51 3 2>;
+				mi,mdss-dsi-local-hbm-off-to-normal-command-state = "dsi_hs_mode";
+
+				qcom,mdss-dsi-timing-switch-command = [
+					15 00 00 40 00 00 02 26 01 /* dynamic update,index 0 */
+					15 00 00 40 00 00 02 2F 00
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 04 04 00 01 04 04 00 00 /* dynamic update,index 5 */
+					/* TE 120HZ */
+					15 00 00 40 00 00 02 BC 20
+					15 00 00 00 00 00 02 2C 00
+				];
+				qcom,mdss-dsi-timing-switch-command-update = <0x26 0 1>, <0xBA 5 9>;
+				qcom,mdss-dsi-timing-switch-command-state = "dsi_hs_mode";
+
+				qcom,mdss-dsi-on-command = [
+					/* Crosstalk optimization */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 08
+					15 00 00 40 00 00 02 6F 06
+					39 00 00 40 00 00 07 BF 04 08 0E 16 1A 20
+					15 00 00 40 00 00 02 6F 0C
+					39 00 00 40 00 00 07 BF 04 08 0E 16 1A 20
+					/* PCD_DATA=GND */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 06
+					39 00 00 40 00 00 06 B1 1C 36 08 37 38
+					39 00 00 40 00 00 06 B7 1C 36 08 37 38
+					/* AOD EM pulse width */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					39 00 00 40 00 00 0A E1 01 00 99 23 8A 00 00 00 00
+					/* DVDD Strong */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 01
+					15 00 00 40 00 00 02 6F 01
+					39 00 00 40 00 00 04 C5 0B 0B 0B
+					/* OSC trim */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 01
+					39 00 00 00 00 00 2A C3 99 04 20 15 FF 00 04 20 0E FF 00 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+					/* Cover ESD */
+					39 00 00 40 00 00 05 FF AA 55 A5 81
+					15 00 00 40 00 00 02 6F 1D
+					15 00 00 40 00 00 02 FB 6F
+					/* FIX PWM&DC FLASH */
+					15 00 00 40 00 00 02 6F 0F
+					15 00 00 40 00 00 02 F5 40
+					/* Rising/Falling time */
+					39 00 00 40 00 00 05 FF AA 55 A5 80
+					15 00 00 40 00 00 02 6F 1B
+					15 00 00 40 00 00 02 F4 55
+					15 00 00 40 00 00 02 6F 06
+					15 00 00 40 00 00 02 F3 DC
+					15 00 00 40 00 00 02 6F 18
+					15 00 00 40 00 00 02 F8 19
+					15 00 00 40 00 00 02 6F 02
+					15 00 00 40 00 00 02 F5 10
+					/* Crosstalk optimization */
+					15 00 00 40 00 00 02 6F 0F
+					15 00 00 40 00 00 02 FC 00
+					/* Source Off */
+					15 00 00 40 00 00 02 6F 0A
+					39 00 00 40 00 00 07 F6 56 56 56 54 57 50
+					/* DSC Setting */
+					39 00 00 40 00 00 03 90 03 03
+					39 00 00 40 00 00 13 91 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 93 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 95 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 97 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					/* CASET/RASET Setting */
+					39 00 00 40 00 00 05 2A 00 00 05 9F
+					39 00 00 40 00 00 05 2B 00 00 0C 7F
+					/* TE ON */
+					15 00 00 40 00 00 02 35 00
+					39 00 00 40 00 00 05 3B 00 14 00 2C
+					15 00 00 40 00 00 02 5A 00
+					/* OSC trim */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 01
+					39 00 00 00 00 00 2A C3 99 04 20 15 FF 00 04 20 0E FF 00 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+					/* BACKLIGHT ON */
+					39 00 00 00 00 00 07 51 00 00 00 00 00 00
+					/* Dimming Set */
+					15 00 00 40 00 00 02 53 20
+					15 00 00 40 00 00 02 9C 01
+					/*GIR ON*/
+					15 00 00 40 00 00 02 5F 00
+					/*ESD Error flag  Active high*/
+					39 00 00 40 00 00 06 F0 55 AA 52 08 05
+					15 00 00 40 00 00 02 6F 02
+					15 00 00 40 00 00 02 B0 0F
+					39 00 00 40 00 00 0A C3 86 00 81 00 00 00 80 00 0A
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					39 00 00 40 00 00 05 BE 47 CF 4C 4B
+					15 00 00 40 00 00 02 6F 09
+					15 00 00 40 00 00 02 BE 2D
+					/*24HZ*/
+					15 00 00 40 00 00 02 26 01
+					15 00 00 40 00 00 02 2F 00
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 04 04 00 01 04 04 00 00
+					/* TE 120HZ */
+					15 00 00 40 00 00 02 BC 20
+					15 00 00 40 00 00 02 2C 00
+					/* Sleep Out */
+					05 00 00 00 78 00 01 11
+					15 00 00 40 00 00 02 9B 00
+					39 00 00 40 00 00 06 F0 55 AA 52 08 02
+					15 00 00 40 00 00 02 CC 10
+					/* Display On */
+					05 00 00 00 00 00 01 29
+				];
+				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+			};
+
+			timing@wqhd_idle_60_to_10hz_index_06 {
+				#include "dsi-panel-n2-42-02-0a-p11-dsc-cmd-common.dtsi"
+				cell-index = <6>;
+				qcom,mdss-dsi-panel-framerate = <60>;
+
+				mi,mdss-dsi-local-hbm-off-to-normal-command = [
+					39 00 00 40 00 00 02 53 20
+					39 00 00 40 00 00 01 86
+					39 00 00 40 00 00 02 87 20
+					39 00 00 00 00 00 03 51 00 00
+					15 00 00 40 00 00 02 26 01
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 09 01 00 11 0B 0B 00 05
+					/* TE 120HZ */
+					15 00 00 40 00 00 02 5A 00
+					15 00 00 40 00 00 02 BC 20
+					15 00 00 00 00 00 02 2C 00
+				];
+				mi,mdss-dsi-local-hbm-off-to-normal-command-update = <0x51 3 2>;
+				mi,mdss-dsi-local-hbm-off-to-normal-command-state = "dsi_hs_mode";
+
+				qcom,mdss-dsi-timing-switch-command = [
+					15 00 00 40 00 00 02 26 01 /* dynamic update,index 0 */
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 09 01 00 11 0B 0B 00 05
+					/* TE 120HZ */
+					15 00 00 40 00 00 02 5A 00
+					15 00 00 40 00 00 02 BC 20
+					15 00 00 00 00 00 02 2C 00
+				];
+				qcom,mdss-dsi-timing-switch-command-update = <0x26 0 1>;
+				qcom,mdss-dsi-timing-switch-command-state = "dsi_hs_mode";
+
+				qcom,mdss-dsi-on-command = [
+					/* Crosstalk optimization */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 08
+					15 00 00 40 00 00 02 6F 06
+					39 00 00 40 00 00 07 BF 04 08 0E 16 1A 20
+					15 00 00 40 00 00 02 6F 0C
+					39 00 00 40 00 00 07 BF 04 08 0E 16 1A 20
+					/* PCD_DATA=GND */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 06
+					39 00 00 40 00 00 06 B1 1C 36 08 37 38
+					39 00 00 40 00 00 06 B7 1C 36 08 37 38
+					/* AOD EM pulse width */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					39 00 00 40 00 00 0A E1 01 00 99 23 8A 00 00 00 00
+					/* DVDD Strong */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 01
+					15 00 00 40 00 00 02 6F 01
+					39 00 00 40 00 00 04 C5 0B 0B 0B
+					/* OSC trim */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 01
+					39 00 00 00 00 00 2A C3 99 04 20 15 FF 00 04 20 0E FF 00 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+					/* Cover ESD */
+					39 00 00 40 00 00 05 FF AA 55 A5 81
+					15 00 00 40 00 00 02 6F 1D
+					15 00 00 40 00 00 02 FB 6F
+					/* FIX PWM&DC FLASH */
+					15 00 00 40 00 00 02 6F 0F
+					15 00 00 40 00 00 02 F5 40
+					/* Rising/Falling time */
+					39 00 00 40 00 00 05 FF AA 55 A5 80
+					15 00 00 40 00 00 02 6F 1B
+					15 00 00 40 00 00 02 F4 55
+					15 00 00 40 00 00 02 6F 06
+					15 00 00 40 00 00 02 F3 DC
+					15 00 00 40 00 00 02 6F 18
+					15 00 00 40 00 00 02 F8 19
+					15 00 00 40 00 00 02 6F 02
+					15 00 00 40 00 00 02 F5 10
+					/* Crosstalk optimization */
+					15 00 00 40 00 00 02 6F 0F
+					15 00 00 40 00 00 02 FC 00
+					/* Source Off */
+					15 00 00 40 00 00 02 6F 0A
+					39 00 00 40 00 00 07 F6 56 56 56 54 57 50
+					/* DSC Setting */
+					39 00 00 40 00 00 03 90 03 03
+					39 00 00 40 00 00 13 91 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 93 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 95 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 97 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					/* CASET/RASET Setting */
+					39 00 00 40 00 00 05 2A 00 00 05 9F
+					39 00 00 40 00 00 05 2B 00 00 0C 7F
+					/* TE ON */
+					15 00 00 40 00 00 02 35 00
+					39 00 00 40 00 00 05 3B 00 14 00 2C
+					15 00 00 40 00 00 02 5A 00
+					/* OSC trim */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 01
+					39 00 00 00 00 00 2A C3 99 04 20 15 FF 00 04 20 0E FF 00 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+					/* BACKLIGHT ON */
+					39 00 00 00 00 00 07 51 00 00 00 00 00 00
+					/* Dimming Set */
+					15 00 00 40 00 00 02 53 20
+					15 00 00 40 00 00 02 9C 01
+					/*GIR ON*/
+					15 00 00 40 00 00 02 5F 00
+					/*ESD Error flag  Active high*/
+					39 00 00 40 00 00 06 F0 55 AA 52 08 05
+					15 00 00 40 00 00 02 6F 02
+					15 00 00 40 00 00 02 B0 0F
+					39 00 00 40 00 00 0A C3 86 00 81 00 00 00 80 00 0A
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					39 00 00 40 00 00 05 BE 47 CF 4C 4B
+					15 00 00 40 00 00 02 6F 09
+					15 00 00 40 00 00 02 BE 2D
+					/*10HZ*/
+					15 00 00 40 00 00 02 26 01
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 09 01 00 11 0B 0B 00 05
+					/* TE 120HZ */
+					15 00 00 40 00 00 02 5A 00
+					15 00 00 40 00 00 02 BC 20
+					15 00 00 00 00 00 02 2C 00
+					/* Sleep Out */
+					05 00 00 00 78 00 01 11
+					15 00 00 40 00 00 02 9B 00
+					39 00 00 40 00 00 06 F0 55 AA 52 08 02
+					15 00 00 40 00 00 02 CC 10
+					/* Display On */
+					05 00 00 00 00 00 01 29
+				];
+				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+			};
+
+			timing@wqhd_idle_60_to_1hz_index_07 {
+				#include "dsi-panel-n2-42-02-0a-p11-dsc-cmd-common.dtsi"
+				cell-index = <7>;
+				qcom,mdss-dsi-panel-framerate = <60>;
+
+				mi,mdss-dsi-local-hbm-off-to-normal-command = [
+					39 00 00 40 00 00 02 53 20
+					39 00 00 40 00 00 01 86
+					39 00 00 40 00 00 02 87 20
+					39 00 00 00 00 00 03 51 00 00
+					15 00 00 40 00 00 02 26 01
+					15 00 00 40 00 00 02 2F 00
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 0B 03 00 11 77 77 00 05
+					//TE 60hz
+					15 00 00 40 00 00 02 BC 20
+					15 00 00 00 00 00 02 2C 00
+				];
+				mi,mdss-dsi-local-hbm-off-to-normal-command-update = <0x51 3 2>;
+				mi,mdss-dsi-local-hbm-off-to-normal-command-state = "dsi_hs_mode";
+
+				qcom,mdss-dsi-timing-switch-command = [
+					15 00 00 40 00 00 02 26 01 /* dynamic update,index 0 */
+					15 00 00 40 00 00 02 2F 00
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 0B 03 00 11 77 77 00 05
+					//TE 60hz
+					15 00 00 40 00 00 02 BC 20
+					15 00 00 00 00 00 02 2C 00
+				];
+				qcom,mdss-dsi-timing-switch-command-update = <0x26 0 1>;
+				qcom,mdss-dsi-timing-switch-command-state = "dsi_hs_mode";
+
+				qcom,mdss-dsi-on-command = [
+					/* Crosstalk optimization */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 08
+					15 00 00 40 00 00 02 6F 06
+					39 00 00 40 00 00 07 BF 04 08 0E 16 1A 20
+					15 00 00 40 00 00 02 6F 0C
+					39 00 00 40 00 00 07 BF 04 08 0E 16 1A 20
+					/* PCD_DATA=GND */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 06
+					39 00 00 40 00 00 06 B1 1C 36 08 37 38
+					39 00 00 40 00 00 06 B7 1C 36 08 37 38
+					/* AOD EM pulse width */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					39 00 00 40 00 00 0A E1 01 00 99 23 8A 00 00 00 00
+					/* DVDD Strong */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 01
+					15 00 00 40 00 00 02 6F 01
+					39 00 00 40 00 00 04 C5 0B 0B 0B
+					/* OSC trim */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 01
+					39 00 00 00 00 00 2A C3 99 04 20 15 FF 00 04 20 0E FF 00 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+					/* Cover ESD */
+					39 00 00 40 00 00 05 FF AA 55 A5 81
+					15 00 00 40 00 00 02 6F 1D
+					15 00 00 40 00 00 02 FB 6F
+					/* FIX PWM&DC FLASH */
+					15 00 00 40 00 00 02 6F 0F
+					15 00 00 40 00 00 02 F5 40
+					/* Rising/Falling time */
+					39 00 00 40 00 00 05 FF AA 55 A5 80
+					15 00 00 40 00 00 02 6F 1B
+					15 00 00 40 00 00 02 F4 55
+					15 00 00 40 00 00 02 6F 06
+					15 00 00 40 00 00 02 F3 DC
+					15 00 00 40 00 00 02 6F 18
+					15 00 00 40 00 00 02 F8 19
+					15 00 00 40 00 00 02 6F 02
+					15 00 00 40 00 00 02 F5 10
+					/* Crosstalk optimization */
+					15 00 00 40 00 00 02 6F 0F
+					15 00 00 40 00 00 02 FC 00
+					/* Source Off */
+					15 00 00 40 00 00 02 6F 0A
+					39 00 00 40 00 00 07 F6 56 56 56 54 57 50
+					/* DSC Setting */
+					39 00 00 40 00 00 03 90 03 03
+					39 00 00 40 00 00 13 91 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 93 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 95 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 97 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					/* CASET/RASET Setting */
+					39 00 00 40 00 00 05 2A 00 00 05 9F
+					39 00 00 40 00 00 05 2B 00 00 0C 7F
+					/* TE ON */
+					15 00 00 40 00 00 02 35 00
+					39 00 00 40 00 00 05 3B 00 14 00 2C
+					15 00 00 40 00 00 02 5A 00
+					/* OSC trim */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 01
+					39 00 00 00 00 00 2A C3 99 04 20 15 FF 00 04 20 0E FF 00 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+					/* BACKLIGHT ON */
+					39 00 00 00 00 00 07 51 00 00 00 00 00 00
+					/* Dimming Set */
+					15 00 00 40 00 00 02 53 20
+					15 00 00 40 00 00 02 9C 01
+					/*GIR ON*/
+					15 00 00 40 00 00 02 5F 00
+					/*ESD Error flag  Active high*/
+					39 00 00 40 00 00 06 F0 55 AA 52 08 05
+					15 00 00 40 00 00 02 6F 02
+					15 00 00 40 00 00 02 B0 0F
+					39 00 00 40 00 00 0A C3 86 00 81 00 00 00 80 00 0A
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					39 00 00 40 00 00 05 BE 47 CF 4C 4B
+					15 00 00 40 00 00 02 6F 09
+					15 00 00 40 00 00 02 BE 2D
+					/*1HZ*/
+					15 00 00 40 00 00 02 26 01
+					15 00 00 40 00 00 02 2F 00
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 0B 03 00 11 77 77 00 05
+					//TE 60hz
+					15 00 00 40 00 00 02 BC 20
+					15 00 00 40 00 00 02 2C 00
+					/* Sleep Out */
+					05 00 00 00 78 00 01 11
+					15 00 00 40 00 00 02 9B 00
+					39 00 00 40 00 00 06 F0 55 AA 52 08 02
+					15 00 00 40 00 00 02 CC 10
+					/* Display On */
+					05 00 00 00 00 00 01 29
+				];
+				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+			};
+
+			timing@wqhd_test_120_to_0.5hz_index_08 {
+				#include "dsi-panel-n2-42-02-0a-p11-dsc-cmd-common.dtsi"
+				cell-index = <8>;
+				qcom,mdss-dsi-panel-framerate = <120>;
+
+				mi,mdss-dsi-local-hbm-off-to-normal-command = [
+					39 00 00 40 00 00 02 53 20
+					39 00 00 40 00 00 01 86
+					39 00 00 40 00 00 02 87 20
+					39 00 00 00 00 00 03 51 00 00
+					/*120HZ*/
+					15 00 00 40 00 00 02 26 01
+					15 00 00 40 00 00 02 2F 00
+					/*0.5HZ*/
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 EF EF 00 01 EF EF 00 00
+					15 00 00 40 00 00 02 BC 00
+					15 00 00 00 00 00 02 2C 00
+				];
+				mi,mdss-dsi-local-hbm-off-to-normal-command-update = <0x51 3 2>;
+				mi,mdss-dsi-local-hbm-off-to-normal-command-state = "dsi_hs_mode";
+
+				qcom,mdss-dsi-timing-switch-command = [
+					/*120HZ*/
+					15 00 00 40 00 00 02 26 01 /* dynamic update,index 0 */
+					15 00 00 40 00 00 02 2F 00
+					/*0.5HZ*/
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 EF EF 00 01 EF EF 00 00 /* dynamic update,index 5 */
+					15 00 00 40 00 00 02 BC 00
+					15 00 00 00 00 00 02 2C 00
+				];
+				qcom,mdss-dsi-timing-switch-command-update = <0x26 0 1>, <0xBA 5 9>;
+				qcom,mdss-dsi-timing-switch-command-state = "dsi_hs_mode";
+
+				qcom,mdss-dsi-on-command = [
+					/* Crosstalk optimization */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 08
+					15 00 00 40 00 00 02 6F 06
+					39 00 00 40 00 00 07 BF 04 08 0E 16 1A 20
+					15 00 00 40 00 00 02 6F 0C
+					39 00 00 40 00 00 07 BF 04 08 0E 16 1A 20
+					/* PCD_DATA=GND */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 06
+					39 00 00 40 00 00 06 B1 1C 36 08 37 38
+					39 00 00 40 00 00 06 B7 1C 36 08 37 38
+					/* AOD EM pulse width */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					39 00 00 40 00 00 0A E1 01 00 99 23 8A 00 00 00 00
+					/* DVDD Strong */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 01
+					15 00 00 40 00 00 02 6F 01
+					39 00 00 40 00 00 04 C5 0B 0B 0B
+					/* OSC trim */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 01
+					39 00 00 00 00 00 2A C3 99 04 20 15 FF 00 04 20 0E FF 00 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+					/* Cover ESD */
+					39 00 00 40 00 00 05 FF AA 55 A5 81
+					15 00 00 40 00 00 02 6F 1D
+					15 00 00 40 00 00 02 FB 6F
+					/* FIX PWM&DC FLASH */
+					15 00 00 40 00 00 02 6F 0F
+					15 00 00 40 00 00 02 F5 40
+					/* Rising/Falling time */
+					39 00 00 40 00 00 05 FF AA 55 A5 80
+					15 00 00 40 00 00 02 6F 1B
+					15 00 00 40 00 00 02 F4 55
+					15 00 00 40 00 00 02 6F 06
+					15 00 00 40 00 00 02 F3 DC
+					15 00 00 40 00 00 02 6F 18
+					15 00 00 40 00 00 02 F8 19
+					15 00 00 40 00 00 02 6F 02
+					15 00 00 40 00 00 02 F5 10
+					/* Crosstalk optimization */
+					15 00 00 40 00 00 02 6F 0F
+					15 00 00 40 00 00 02 FC 00
+					/* Source Off */
+					15 00 00 40 00 00 02 6F 0A
+					39 00 00 40 00 00 07 F6 56 56 56 54 57 50
+					/* DSC Setting */
+					39 00 00 40 00 00 03 90 03 03
+					39 00 00 40 00 00 13 91 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 93 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 95 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 97 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					/* CASET/RASET Setting */
+					39 00 00 40 00 00 05 2A 00 00 05 9F
+					39 00 00 40 00 00 05 2B 00 00 0C 7F
+					/* TE ON */
+					15 00 00 40 00 00 02 35 00
+					39 00 00 40 00 00 05 3B 00 14 00 2C
+					15 00 00 40 00 00 02 5A 00
+					/* OSC trim */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 01
+					39 00 00 00 00 00 2A C3 99 04 20 15 FF 00 04 20 0E FF 00 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+					/* BACKLIGHT ON */
+					39 00 00 00 00 00 07 51 00 00 00 00 00 00
+					/* Dimming Set */
+					15 00 00 40 00 00 02 53 20
+					15 00 00 40 00 00 02 9C 01
+					/*GIR ON*/
+					15 00 00 40 00 00 02 5F 00
+					/*ESD Error flag  Active high*/
+					39 00 00 40 00 00 06 F0 55 AA 52 08 05
+					15 00 00 40 00 00 02 6F 02
+					15 00 00 40 00 00 02 B0 0F
+					39 00 00 40 00 00 0A C3 86 00 81 00 00 00 80 00 0A
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					39 00 00 40 00 00 05 BE 47 CF 4C 4B
+					15 00 00 40 00 00 02 6F 09
+					15 00 00 40 00 00 02 BE 2D
+					/*120HZ*/
+					15 00 00 40 00 00 02 26 01
+					15 00 00 40 00 00 02 2F 00
+					/*0.5HZ*/
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 EF EF 00 01 EF EF 00 00
+					15 00 00 40 00 00 02 BC 00
+					15 00 00 40 00 00 02 2C 00
+					/* Sleep Out */
+					05 00 00 00 78 00 01 11
+					15 00 00 40 00 00 02 9B 00
+					39 00 00 40 00 00 06 F0 55 AA 52 08 02
+					15 00 00 40 00 00 02 CC 10
+					/* Display On */
+					05 00 00 00 00 00 01 29
+				];
+				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+			};
+
+			timing@wqhd_auto_60_to_30hz_index_09 {
+				#include "dsi-panel-n2-42-02-0a-p11-dsc-cmd-common.dtsi"
+				cell-index = <9>;
+				qcom,mdss-dsi-panel-framerate = <60>;
+
+				mi,mdss-dsi-local-hbm-off-to-normal-command = [
+					39 00 00 40 00 00 02 53 20
+					39 00 00 40 00 00 01 86
+					39 00 00 40 00 00 02 87 20
+					39 00 00 00 00 00 03 51 00 00
+					15 00 00 40 00 00 02 26 01
+					15 00 00 40 00 00 02 2F 00
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 03 03 00 01 03 03 00 00
+					/* TE 60HZ */
+					15 00 00 40 00 00 02 BC 20
+					15 00 00 00 00 00 02 2C 00
+				];
+				mi,mdss-dsi-local-hbm-off-to-normal-command-update = <0x51 3 2>;
+				mi,mdss-dsi-local-hbm-off-to-normal-command-state = "dsi_hs_mode";
+
+				qcom,mdss-dsi-timing-switch-command = [
+					15 00 00 40 00 00 02 26 01 /* dynamic update,index 0 */
+					15 00 00 40 00 00 02 2F 00
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 03 03 00 01 03 03 00 00
+					/* TE 60HZ */
+					15 00 00 40 00 00 02 BC 20
+					15 00 00 00 00 00 02 2C 00
+				];
+				qcom,mdss-dsi-timing-switch-command-update = <0x26 0 1>;
+				qcom,mdss-dsi-timing-switch-command-state = "dsi_hs_mode";
+
+				qcom,mdss-dsi-on-command = [
+					/* Crosstalk optimization */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 08
+					15 00 00 40 00 00 02 6F 06
+					39 00 00 40 00 00 07 BF 04 08 0E 16 1A 20
+					15 00 00 40 00 00 02 6F 0C
+					39 00 00 40 00 00 07 BF 04 08 0E 16 1A 20
+					/* PCD_DATA=GND */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 06
+					39 00 00 40 00 00 06 B1 1C 36 08 37 38
+					39 00 00 40 00 00 06 B7 1C 36 08 37 38
+					/* AOD EM pulse width */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					39 00 00 40 00 00 0A E1 01 00 99 23 8A 00 00 00 00
+					/* DVDD Strong */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 01
+					15 00 00 40 00 00 02 6F 01
+					39 00 00 40 00 00 04 C5 0B 0B 0B
+					/* OSC trim */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 01
+					39 00 00 00 00 00 2A C3 99 04 20 15 FF 00 04 20 0E FF 00 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+					/* Cover ESD */
+					39 00 00 40 00 00 05 FF AA 55 A5 81
+					15 00 00 40 00 00 02 6F 1D
+					15 00 00 40 00 00 02 FB 6F
+					/* FIX PWM&DC FLASH */
+					15 00 00 40 00 00 02 6F 0F
+					15 00 00 40 00 00 02 F5 40
+					/* Rising/Falling time */
+					39 00 00 40 00 00 05 FF AA 55 A5 80
+					15 00 00 40 00 00 02 6F 1B
+					15 00 00 40 00 00 02 F4 55
+					15 00 00 40 00 00 02 6F 06
+					15 00 00 40 00 00 02 F3 DC
+					15 00 00 40 00 00 02 6F 18
+					15 00 00 40 00 00 02 F8 19
+					15 00 00 40 00 00 02 6F 02
+					15 00 00 40 00 00 02 F5 10
+					/* Crosstalk optimization */
+					15 00 00 40 00 00 02 6F 0F
+					15 00 00 40 00 00 02 FC 00
+					/* Source Off */
+					15 00 00 40 00 00 02 6F 0A
+					39 00 00 40 00 00 07 F6 56 56 56 54 57 50
+					/* DSC Setting */
+					39 00 00 40 00 00 03 90 03 03
+					39 00 00 40 00 00 13 91 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 93 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 95 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 97 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					/* CASET/RASET Setting */
+					39 00 00 40 00 00 05 2A 00 00 05 9F
+					39 00 00 40 00 00 05 2B 00 00 0C 7F
+					/* TE ON */
+					15 00 00 40 00 00 02 35 00
+					39 00 00 40 00 00 05 3B 00 14 00 2C
+					15 00 00 40 00 00 02 5A 00
+					/* OSC trim */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 01
+					39 00 00 00 00 00 2A C3 99 04 20 15 FF 00 04 20 0E FF 00 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+					/* BACKLIGHT ON */
+					39 00 00 00 00 00 07 51 00 00 00 00 00 00
+					/* Dimming Set */
+					15 00 00 40 00 00 02 53 20
+					15 00 00 40 00 00 02 9C 01
+					/*GIR ON*/
+					15 00 00 40 00 00 02 5F 00
+					/*ESD Error flag  Active high*/
+					39 00 00 40 00 00 06 F0 55 AA 52 08 05
+					15 00 00 40 00 00 02 6F 02
+					15 00 00 40 00 00 02 B0 0F
+					39 00 00 40 00 00 0A C3 86 00 81 00 00 00 80 00 0A
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					39 00 00 40 00 00 05 BE 47 CF 4C 4B
+					15 00 00 40 00 00 02 6F 09
+					15 00 00 40 00 00 02 BE 2D
+					/*120HZ*/
+					15 00 00 40 00 00 02 26 01
+					/*Auto 60HZ*/
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 03 03 00 01 03 03 00 00
+					15 00 00 40 00 00 02 5A 00
+					15 00 00 40 00 00 02 BC 20
+					15 00 00 00 00 00 02 2C 00
+					/* Sleep Out */
+					05 00 00 00 78 00 01 11
+					15 00 00 40 00 00 02 9B 00
+					39 00 00 40 00 00 06 F0 55 AA 52 08 02
+					15 00 00 40 00 00 02 CC 10
+					/* Display On */
+					05 00 00 00 00 00 01 29
+				];
+				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+			};
+
+			timing@wqhd_auto_120_to_60hz_index_10 {
+				#include "dsi-panel-n2-42-02-0a-p11-dsc-cmd-common.dtsi"
+				cell-index = <10>;
+				qcom,mdss-dsi-panel-framerate = <120>;
+
+				mi,mdss-dsi-local-hbm-off-to-normal-command = [
+					39 00 00 40 00 00 02 53 20
+					39 00 00 40 00 00 01 86
+					39 00 00 40 00 00 02 87 20
+					39 00 00 00 00 00 03 51 00 00
+					/*120HZ*/
+					15 00 00 40 00 00 02 26 00
+					/*Auto 120HZ*/
+					15 00 00 40 00 00 02 2F 00
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 01 01 00 01 01 01 00 00
+					15 00 00 40 00 00 02 5A 00
+					15 00 00 40 00 00 02 BC 00
+					15 00 00 00 00 00 02 2C 00
+				];
+				mi,mdss-dsi-local-hbm-off-to-normal-command-update = <0x51 3 2>;
+				mi,mdss-dsi-local-hbm-off-to-normal-command-state = "dsi_hs_mode";
+
+				qcom,mdss-dsi-timing-switch-command = [
+					/*120HZ*/
+					15 00 00 40 00 00 02 26 00  /* dynamic update,index 0 */
+					/*Auto 120HZ*/
+					15 00 00 40 00 00 02 2F 30  /* dynamic update,index 1 */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 01 01 00 01 01 01 00 00
+					15 00 00 40 00 00 02 5A 00
+					15 00 00 40 00 00 02 BC 00
+					15 00 00 00 00 00 02 2C 00
+				];
+				qcom,mdss-dsi-timing-switch-command-update = <0x26 0 1>, <0x2F 1 1>;
+				qcom,mdss-dsi-timing-switch-command-state = "dsi_hs_mode";
+
+				qcom,mdss-dsi-on-command = [
+					/* Crosstalk optimization */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 08
+					15 00 00 40 00 00 02 6F 06
+					39 00 00 40 00 00 07 BF 04 08 0E 16 1A 20
+					15 00 00 40 00 00 02 6F 0C
+					39 00 00 40 00 00 07 BF 04 08 0E 16 1A 20
+					/* PCD_DATA=GND */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 06
+					39 00 00 40 00 00 06 B1 1C 36 08 37 38
+					39 00 00 40 00 00 06 B7 1C 36 08 37 38
+					/* AOD EM pulse width */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					39 00 00 40 00 00 0A E1 01 00 99 23 8A 00 00 00 00
+					/* DVDD Strong */
+					39 00 00 40 00 00 06 F0 55 AA 52 08 01
+					15 00 00 40 00 00 02 6F 01
+					39 00 00 40 00 00 04 C5 0B 0B 0B
+					/* OSC trim */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 01
+					39 00 00 00 00 00 2A C3 99 04 20 15 FF 00 04 20 0E FF 00 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+					/* Cover ESD */
+					39 00 00 40 00 00 05 FF AA 55 A5 81
+					15 00 00 40 00 00 02 6F 1D
+					15 00 00 40 00 00 02 FB 6F
+					/* FIX PWM&DC FLASH */
+					15 00 00 40 00 00 02 6F 0F
+					15 00 00 40 00 00 02 F5 40
+					/* Rising/Falling time */
+					39 00 00 40 00 00 05 FF AA 55 A5 80
+					15 00 00 40 00 00 02 6F 1B
+					15 00 00 40 00 00 02 F4 55
+					15 00 00 40 00 00 02 6F 06
+					15 00 00 40 00 00 02 F3 DC
+					15 00 00 40 00 00 02 6F 18
+					15 00 00 40 00 00 02 F8 19
+					15 00 00 40 00 00 02 6F 02
+					15 00 00 40 00 00 02 F5 10
+					/* Crosstalk optimization */
+					15 00 00 40 00 00 02 6F 0F
+					15 00 00 40 00 00 02 FC 00
+					/* Source Off */
+					15 00 00 40 00 00 02 6F 0A
+					39 00 00 40 00 00 07 F6 56 56 56 54 57 50
+					/* DSC Setting */
+					39 00 00 40 00 00 03 90 03 03
+					39 00 00 40 00 00 13 91 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 93 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 95 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					39 00 00 40 00 00 13 97 AB A8 00 14 D2 00 02 86 02 15 00 0A 05 7A 03 D1 10 F0
+					/* CASET/RASET Setting */
+					39 00 00 40 00 00 05 2A 00 00 05 9F
+					39 00 00 40 00 00 05 2B 00 00 0C 7F
+					/* TE ON */
+					15 00 00 40 00 00 02 35 00
+					39 00 00 40 00 00 05 3B 00 14 00 2C
+					15 00 00 40 00 00 02 5A 00
+					/* OSC trim */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 01
+					39 00 00 00 00 00 2A C3 99 04 20 15 FF 00 04 20 0E FF 00 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+										06 2F 21 06 37 16 06 2F 21 06 37 16
+					/* BACKLIGHT ON */
+					39 00 00 00 00 00 07 51 00 00 00 00 00 00
+					/* Dimming Set */
+					15 00 00 40 00 00 02 53 20
+					15 00 00 40 00 00 02 9C 01
+					/*GIR ON*/
+					15 00 00 40 00 00 02 5F 00
+					/*ESD Error flag  Active high*/
+					39 00 00 40 00 00 06 F0 55 AA 52 08 05
+					15 00 00 40 00 00 02 6F 02
+					15 00 00 40 00 00 02 B0 0F
+					39 00 00 40 00 00 0A C3 86 00 81 00 00 00 80 00 0A
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					39 00 00 40 00 00 05 BE 47 CF 4C 4B
+					15 00 00 40 00 00 02 6F 09
+					15 00 00 40 00 00 02 BE 2D
+					/*120HZ*/
+					15 00 00 40 00 00 02 26 00
+					/*Auto 120HZ*/
+					15 00 00 40 00 00 02 2F 30
+					39 00 00 40 00 00 06 F0 55 AA 52 08 00
+					15 00 00 40 00 00 02 6F 1C
+					39 00 00 40 00 00 0A BA 91 01 01 00 01 01 01 00 00
+					15 00 00 40 00 00 02 5A 00
+					15 00 00 40 00 00 02 BC 00
+					15 00 00 00 00 00 02 2C 00
+					/* Sleep Out */
+					05 00 00 00 78 00 01 11
+					15 00 00 40 00 00 02 9B 00
+					39 00 00 40 00 00 06 F0 55 AA 52 08 02
+					15 00 00 40 00 00 02 CC 10
+					/* Display On */
+					05 00 00 00 00 00 01 29
+				];
+				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+			};
+		};
+	};
+};
+
+&dsi_n2_42_02_0a_p11_dsc_cmd {
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply_N2>;
+	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
+	qcom,mdss-dsi-bl-min-level = <25>;
+	qcom,mdss-dsi-bl-max-level = <4095>;
+	qcom,bl-dsc-cmd-state = "dsi_hs_mode";
+	qcom,mdss-brightness-max-level = <4095>;
+	qcom,mdss-brightness-init-level = <307>;
+	qcom,platform-reset-gpio = <&tlmm 133 0>;
+
+	mi,panel-build-id-read-needed;
+	mi,panel-build-id-read-length = <1>;
+	mi,mdss-dsi-panel-build-id-read-command = [06 01 00 01 00 00 01 DA];
+	mi,mdss-dsi-panel-build-id-read-command-state = "dsi_hs_mode";
+
+	mi,disable-ic-dimming-flag;
+	qcom,mdss-dsi-panel-vsync-delay;
+	qcom,ulps-enabled;
+	qcom,dsi-select-clocks = "pll_byte_clk0", "pll_dsi_clk0";
+	qcom,mdss-dsi-clk-strength = <0xFF>;
+
+	qcom,mdss-dsi-display-timings {
+		/* WQHD 120hz */
+		timing@wqhd_normal_120hz_index_01{
+			/*<flat on gamma, flat off gamma>*/
+			mi,mdss-flat-status-control-gamma-26-cfg  = <0x00 0x02>;
+			mi,mdss-flat-status-control-gamma-2F-cfg  = <0x00 0x02>;
+
+			mi,mdss-dsi-flat-mode-on-command = [
+				39 00 00 40 00 00 02 26 00
+				39 00 00 40 00 00 02 2F 00
+				39 00 00 00 00 00 02 5F 00
+			];
+			mi,mdss-dsi-flat-mode-on-command-update = <0x26 0 1>, <0x2F 1 1>;
+			mi,mdss-dsi-flat-mode-on-command-state = "dsi_hs_mode";
+
+			mi,mdss-dsi-flat-mode-off-command = [
+				39 00 00 40 00 00 02 2F 02
+				39 00 00 00 00 00 02 5F 01
+			];
+			mi,mdss-dsi-flat-mode-off-command-update = <0x2F 0 1>;
+			mi,mdss-dsi-flat-mode-off-command-state = "dsi_hs_mode";
+		};
+		/* WQHD 90hz */
+		timing@wqhd_normal_90hz_index_02{
+			/*<flat on gamma, flat off gamma>*/
+			mi,mdss-flat-status-control-gamma-2F-cfg = <0x01 0x03>;
+
+			mi,mdss-dsi-flat-mode-on-command = [
+				39 00 00 40 00 00 02 2F 01
+				39 00 00 00 00 00 02 5F 00
+			];
+			mi,mdss-dsi-flat-mode-on-command-update = <0x2F 0 1>;
+			mi,mdss-dsi-flat-mode-on-command-state = "dsi_hs_mode";
+
+			mi,mdss-dsi-flat-mode-off-command = [
+				39 00 00 40 00 00 02 2F 03
+				39 00 00 00 00 00 02 5F 01
+			];
+			mi,mdss-dsi-flat-mode-off-command-update = <0x2F 0 1>;
+			mi,mdss-dsi-flat-mode-off-command-state = "dsi_hs_mode";
+		};
+		/* WQHD 40hz */
+		timing@wqhd_normal_40hz_index_03{
+			#include "dsi-panel-n2-42-02-0a-p11-dsc-cmd-dbi-bwg-30hz.dtsi"
+		};
+		/* WQHD 30hz */
+		timing@wqhd_normal_30hz_index_04{
+			#include "dsi-panel-n2-42-02-0a-p11-dsc-cmd-dbi-bwg-30hz.dtsi"
+		};
+		/* WQHD 24hz */
+		timing@wqhd_diff_60_to_24hz_index_05{
+			#include "dsi-panel-n2-42-02-0a-p11-dsc-cmd-dbi-bwg-30hz.dtsi"
+			/* ---------------------------- */
+			/* | 15 - 14 | 13 - 7 | 6 - 0 | */
+			/* ---------------------------- */
+			/* |   mode  | sf fps | min fps| */
+			/* ---------------------------- -*/
+			/* mode: 1 idle, 2 auto, 3 qsync */
+			/*   1 << 14 | 60 << 7 | 24     */
+			qcom,mdss-dsi-h-sync-skew = <24088>;
+			/* mode: 0 normal, 1 idle, 2 auto, 3 qsync, 4 diff, 5 test */
+			mi,mdss-dsi-ddic-mode = "diff";
+			mi,mdss-dsi-sf-framerate = <60>;
+			mi,mdss-dsi-ddic-min-framerate = <24>;
+		};
+		/* WQHD 10hz */
+		timing@wqhd_idle_60_to_10hz_index_06{
+			#include "dsi-panel-n2-42-02-0a-p11-dsc-cmd-dbi-bwg-10hz.dtsi"
+			mi,mdss-dsi-flat-mode-off-command-state = "dsi_hs_mode";
+
+			/* ---------------------------- */
+			/* | 15 - 14 | 13 - 7 | 6 - 0 | */
+			/* ---------------------------- */
+			/* |   mode  | sf fps | min fps| */
+			/* ---------------------------- -*/
+			/* mode: 1 idle, 2 auto, 3 qsync */
+			/*   1 << 14 | 60 << 7 | 10     */
+			qcom,mdss-dsi-h-sync-skew = <24074>;
+			/* mode: 0 normal, 1 idle, 2 auto, 3 qsync, 4 diff, 5 test */
+			mi,mdss-dsi-ddic-mode = "idle";
+			mi,mdss-dsi-sf-framerate = <60>;
+			mi,mdss-dsi-ddic-min-framerate = <10>;
+		};
+		/* WQHD 1hz */
+		timing@wqhd_idle_60_to_1hz_index_07{
+			#include "dsi-panel-n2-42-02-0a-dsc-cmd-dbi-bwg-1hz.dtsi"
+			/* ---------------------------- */
+			/* | 15 - 14 | 13 - 7 | 6 - 0 | */
+			/* ---------------------------- */
+			/* |   mode  | sf fps | min fps| */
+			/* ---------------------------- -*/
+			/* mode: 1 idle, 2 auto, 3 qsync */
+			/*   1 << 14 | 60 << 7 | 1     */
+			qcom,mdss-dsi-h-sync-skew = <24065>;
+			/* mode: 0 normal, 1 idle, 2 auto, 3 qsync, 4 diff, 5 test */
+			mi,mdss-dsi-ddic-mode = "idle";
+			mi,mdss-dsi-sf-framerate = <60>;
+			mi,mdss-dsi-ddic-min-framerate = <1>;
+		};
+		/* WQHD 0.5hz */
+		timing@wqhd_test_120_to_0.5hz_index_08{
+			#include "dsi-panel-n2-42-02-0a-dsc-cmd-dbi-bwg-1hz.dtsi"
+			/* ---------------------------- */
+			/* | 15 - 14 | 13 - 7 | 6 - 0 | */
+			/* ---------------------------- */
+			/* |   mode  | sf fps | min fps| */
+			/* ---------------------------- -*/
+			/* mode: 1 idle, 2 auto, 3 qsync */
+			/*   1 << 14 | 120 << 7 | 127    */
+			qcom,mdss-dsi-h-sync-skew = <31871>;
+			/* mode: 0 normal, 1 idle, 2 auto, 3 qsync, 4 diff, 5 test */
+			mi,mdss-dsi-ddic-mode = "test";
+			mi,mdss-dsi-sf-framerate = <120>;
+			mi,mdss-dsi-ddic-min-framerate = <127>;
+		};
+		timing@wqhd_auto_60_to_30hz_index_09 {
+			/* ---------------------------- */
+			/* | 15 - 14 | 13 - 7 | 6 - 0 | */
+			/* ---------------------------- */
+			/* |   mode  | sf fps | min fps| */
+			/* ---------------------------- -*/
+			/* mode: 1 idle, 2 auto, 3 qsync */
+			/*   2 << 14 | 60 << 7 | 30      */
+			qcom,mdss-dsi-h-sync-skew = <40478>;
+			/* mode: 0 normal, 1 idle, 2 auto, 3 qsync, 4 diff, 5 test */
+			mi,mdss-dsi-ddic-mode = "auto";
+			mi,mdss-dsi-sf-framerate = <60>;
+			mi,mdss-dsi-ddic-min-framerate = <30>;
+		};
+		timing@wqhd_auto_120_to_60hz_index_10 {
+			/*<flat on gamma, flat off gamma>*/
+			mi,mdss-flat-status-control-gamma-26-cfg = <0x00 0x02>;
+			mi,mdss-flat-status-control-gamma-2F-cfg = <0x30 0x32>;
+
+			mi,mdss-dsi-flat-mode-on-command = [
+				39 00 00 40 00 00 02 26 00
+				39 00 00 40 00 00 02 5F 00
+				39 00 00 00 00 00 02 2F 30
+			];
+			mi,mdss-dsi-flat-mode-on-command-update = <0x26 0 1>;
+			mi,mdss-dsi-flat-mode-on-command-state = "dsi_hs_mode";
+
+			mi,mdss-dsi-flat-mode-off-command = [
+				39 00 00 40 00 00 02 5F 01
+				39 00 00 00 00 00 02 2F 32
+			];
+			mi,mdss-dsi-flat-mode-off-command-state = "dsi_hs_mode";
+
+			/* ---------------------------- */
+			/* | 15 - 14 | 13 - 7 | 6 - 0 | */
+			/* ---------------------------- */
+			/* |   mode  | sf fps | min fps| */
+			/* ---------------------------- -*/
+			/* mode: 1 idle, 2 auto, 3 qsync */
+			/*   2 << 14 | 120 << 7 | 60      */
+			qcom,mdss-dsi-h-sync-skew = <48188>;
+			/* mode: 0 normal, 1 idle, 2 auto, 3 qsync, 4 diff, 5 test */
+			mi,mdss-dsi-ddic-mode = "auto";
+			mi,mdss-dsi-sf-framerate = <120>;
+			mi,mdss-dsi-ddic-min-framerate = <60>;
+		};
+	};
+};

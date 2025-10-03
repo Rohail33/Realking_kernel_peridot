@@ -1,0 +1,13 @@
+/dts-v1/;
+/plugin/;
+
+#include "chenfeng-sde-display.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. Cliffs MTP";
+	compatible = "qcom,cliffs-mtp", "qcom,cliffs", "qcom,mtp";
+	qcom,msm-id = <614 0x10000>, <632 0x10000>;
+	qcom,board-id = <8 0>;
+	xiaomi,miboard-id = <0x9 0>;
+};
+
