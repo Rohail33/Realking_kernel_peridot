@@ -1,0 +1,17 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/clock/qcom,gcc-pineapple.h>
+#include <dt-bindings/clock/qcom,camcc-pineapple.h>
+#include <dt-bindings/interconnect/qcom,pineapple.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/regulator/qcom,rpmh-regulator-levels.h>
+
+#include "aurora-sm8650-camera-sensor.dtsi"
+/ {
+	model = "Qualcomm Technologies, Inc. Shennong based on Pineapple";
+	compatible = "qcom,pineapple-mtp", "qcom,pineapple", "qcom,mtp";
+	qcom,msm-id = <557 0x10000>, <557 0x20000>, <577 0x10000>, <577 0x20000>;
+	qcom,board-id = <8 0>;
+	xiaomi,miboard-id = <0x4 0>;
+};
