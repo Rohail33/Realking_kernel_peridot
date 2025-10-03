@@ -2211,6 +2211,7 @@
   of_get_next_child
   of_get_next_parent
   of_get_parent
+  of_get_pci_domain_nr
   of_get_phy_mode
   of_get_property
   of_get_regulator_init_data
@@ -2271,6 +2272,7 @@
   of_thermal_get_trip_points
   of_thermal_is_trip_valid
   of_translate_address
+  of_update_property
   on_each_cpu_cond_mask
   oops_in_progress
   open_candev
@@ -2312,6 +2314,11 @@
   pci_aer_clear_nonfatal_status
   pci_alloc_irq_vectors_affinity
   pci_assign_resource
+  pci_bus_add_device
+  pci_bus_add_devices
+  pci_bus_assign_resources
+  pci_bus_claim_resources
+  pci_bus_size_bridges
   pci_bus_type
   pci_clear_master
   pci_dev_get
@@ -2325,9 +2332,13 @@
   pcie_capability_clear_and_set_word
   pcie_capability_read_dword
   pcie_capability_read_word
+  pci_ecam_create
+  pci_ecam_map_bus
   pci_enable_device
   pci_enable_pcie_error_reporting
   pci_find_ext_capability
+  pci_find_vsec_capability
+  pci_flags
   pci_free_irq_vectors
   pci_get_device
   pci_get_domain_bus_and_slot
@@ -2348,6 +2359,7 @@
   pci_remove_root_bus
   pci_request_region
   pci_restore_state
+  pci_scan_root_bus_bridge
   pci_save_state
   pci_set_master
   pci_set_power_state
@@ -2357,6 +2369,7 @@
   pci_walk_bus
   pci_write_config_dword
   pci_write_config_word
+  pcie_bus_configure_settings
   pcpu_nr_pages
   __percpu_down_read
   percpu_down_write
@@ -3551,6 +3564,7 @@
   __traceiter_android_vh_ufs_send_uic_command
   __traceiter_android_vh_ufs_update_sdev
   __traceiter_android_vh_update_topology_flags_workfn
+  __traceiter_android_vh_vprintk_store
   __traceiter_binder_transaction_received
   __traceiter_cpu_frequency_limits
   __traceiter_cpu_idle
@@ -3706,6 +3720,7 @@
   __tracepoint_android_vh_ufs_send_uic_command
   __tracepoint_android_vh_ufs_update_sdev
   __tracepoint_android_vh_update_topology_flags_workfn
+  __tracepoint_android_vh_vprintk_store
   __tracepoint_binder_transaction_received
   __tracepoint_cpu_frequency_limits
   __tracepoint_cpu_idle
@@ -4097,6 +4112,7 @@
   virtqueue_get_buf_ctx
   virtqueue_get_desc_addr
   virtqueue_get_used_addr
+  virtqueue_get_vring
   virtqueue_get_vring_size
   virtqueue_is_broken
   virtqueue_kick
@@ -4118,6 +4134,8 @@
   vmalloc_to_page
   vmalloc_to_pfn
   vmap
+  vmap_pages_range_noflush
+  __vmap_pages_range_noflush
   vmemdup_user
   vmf_insert_mixed
   vmf_insert_pfn
@@ -4180,6 +4198,7 @@
   __xa_insert
   xa_load
   xa_store
+  xas_load
   xdp_convert_zc_to_xdp_frame
   xdp_do_flush
   xdp_do_redirect
