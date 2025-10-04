@@ -5,7 +5,7 @@
  * Copyright (C) 2016 Linaro Ltd
  * Copyright (C) 2014 Sony Mobile Communications AB
  * Copyright (c) 2012-2013, 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/clk.h>
@@ -31,11 +31,13 @@
 #include <linux/soc/qcom/smem_state.h>
 #include <linux/soc/qcom/qcom_aoss.h>
 #include <soc/qcom/secure_buffer.h>
+#include <linux/pm_wakeirq.h>
 
 #include <trace/events/rproc_qcom.h>
 #include <soc/qcom/qcom_ramdump.h>
 #include <trace/hooks/remoteproc.h>
 #include <linux/iopoll.h>
+#include <linux/timer.h>
 
 #include "qcom_common.h"
 #include "qcom_pil_info.h"
@@ -66,6 +68,9 @@ static bool recovery_set_cb;
 #define SOCCP_D1  0x4
 #define SOCCP_D3  0x8
 
+#define EARLY_BOOT_RETRY_COUNT 5
+#define EARLY_BOOT_RETRY_INTERVAL_MS 1000
+
 struct adsp_data {
 	int crash_reason_smem;
 	const char *firmware_name;
@@ -86,12 +91,14 @@ struct adsp_data {
 	char **active_pd_names;
 	char **proxy_pd_names;
 
+	const char *load_state;
 	const char *ssr_name;
 	const char *sysmon_name;
 	const char *qmp_name;
 	int ssctl_id;
 	unsigned int smem_host_id;
 	bool check_status;
+	bool early_boot;
 };
 
 struct qcom_adsp {
@@ -135,6 +142,8 @@ struct qcom_adsp {
 
 	struct completion start_done;
 	struct completion stop_done;
+	struct timer_list boot_timer;
+	u32 count_get_irq;
 
 	phys_addr_t dtb_mem_phys;
 	phys_addr_t dtb_mem_reloc;
@@ -170,6 +179,9 @@ struct qcom_adsp {
 	bool check_status;
 	bool rproc_ddr_set_icc_low_svs;
 	unsigned int rproc_ddr_lowsvs_icc_bw;
+
+	bool ready_irq;
+	bool crash_irq;
 };
 
 static ssize_t txn_id_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -921,6 +933,7 @@ static int rproc_find_status_register(struct qcom_adsp *adsp)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_QCOM_Q6V5_PAS_SOCCP_V1)
 static bool rproc_poll_handover(struct qcom_adsp *adsp)
 {
 	unsigned int retry_num = 50;
@@ -1071,6 +1084,7 @@ soccp_out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(rproc_set_state);
+#endif
 
 static int rproc_panic_handler(struct notifier_block *this,
 			      unsigned long event, void *ptr)
@@ -1080,22 +1094,24 @@ static int rproc_panic_handler(struct notifier_block *this,
 
 	if (!adsp)
 		return NOTIFY_DONE;
-	/* wake up SOCCP during panic to run error handlers on SOCCP */
-	dev_info(adsp->dev, "waking SOCCP from panic path\n");
-	ret = qcom_smem_state_update_bits(adsp->wake_state,
-				    SOCCP_STATE_MASK,
-				    BIT(adsp->wake_bit));
-	if (ret) {
-		dev_err(adsp->dev, "failed to update smem bits for D3 to D0\n");
-		goto done;
-	}
-	ret = rproc_config_check_atomic(adsp, SOCCP_D0, adsp->tcsr_addr);
-	if (ret)
-		dev_err(adsp->dev, "failed to change to D0\n");
+	if (adsp->check_status) {
+		/* wake up SOCCP during panic to run error handlers on SOCCP */
+		dev_info(adsp->dev, "waking SOCCP from panic path\n");
+		ret = qcom_smem_state_update_bits(adsp->wake_state,
+						SOCCP_STATE_MASK,
+						BIT(adsp->wake_bit));
+		if (ret) {
+			dev_err(adsp->dev, "failed to update smem bits for D3 to D0\n");
+			goto done;
+		}
+		ret = rproc_config_check_atomic(adsp, SOCCP_D0, adsp->tcsr_addr);
+		if (ret)
+			dev_err(adsp->dev, "failed to change to D0\n");
 
-	ret = rproc_config_check_atomic(adsp, SPARE_REG_SOCCP_D0, adsp->spare_reg_addr);
-	if (ret)
-		dev_err(adsp->dev, "failed to change to D0\n");
+		ret = rproc_config_check_atomic(adsp, SPARE_REG_SOCCP_D0, adsp->spare_reg_addr);
+		if (ret)
+			dev_err(adsp->dev, "failed to change to D0\n");
+	}
 done:
 	return NOTIFY_DONE;
 }
@@ -1175,12 +1191,59 @@ static int adsp_stop(struct rproc *rproc)
 	return ret;
 }
 
+/*
+ * read_early_boot_register: Read Slave kernel bits
+ *
+ * Function to read the slave kernel bits and update the rproc state
+ * based off the read bits.
+ *
+ * return:
+ *        -EINVAL if the slave kernel bits have not been set
+ *        -ENODATA if the slave kernel is read but the device has
+ *              not crashed or boot up
+ *        0 if the value has been read and the state has been set
+ *
+ */
+void read_early_boot_register(struct timer_list *timer)
+{
+	struct qcom_adsp *adsp = NULL;
+	int ret = ENODATA;
+
+	adsp = container_of(timer, struct qcom_adsp, boot_timer);
+	if (!adsp)
+		return;
+
+	ret = irq_get_irqchip_state(adsp->q6v5.fatal_irq,
+				IRQCHIP_STATE_LINE_LEVEL, &adsp->crash_irq);
+	if (adsp->crash_irq) {
+		dev_err(adsp->dev, "Sub system has crashed before driver probe\n");
+		adsp->rproc->state = RPROC_CRASHED;
+	}
+
+	ret = irq_get_irqchip_state(adsp->q6v5.ready_irq,
+			IRQCHIP_STATE_LINE_LEVEL, &adsp->ready_irq);
+
+	if (adsp->ready_irq) {
+		dev_info(adsp->dev, "Sub system has boot-up before driver probe\n");
+		adsp->rproc->state = RPROC_DETACHED;
+	}
+
+	if ((adsp->count_get_irq++ < EARLY_BOOT_RETRY_COUNT) && (ret == -ENODEV))
+		mod_timer(&adsp->boot_timer,
+			jiffies + msecs_to_jiffies(EARLY_BOOT_RETRY_INTERVAL_MS));
+	else
+		complete(&adsp->q6v5.subsys_booted);
+
+}
+
 static int adsp_attach(struct rproc *rproc)
 {
 	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
 	const struct firmware *fw;
 	int ret = 0;
 	int i;
+	if (adsp->q6v5.early_boot)
+		goto timer_setup;
 
 	/* try to register fw for dumps; continue if we fail */
 	ret = request_firmware(&fw, rproc->firmware, &rproc->dev);
@@ -1278,7 +1341,22 @@ unscale_bus:
 	do_bus_scaling(adsp, false);
 disable_irqs:
 	qcom_q6v5_unprepare(&adsp->q6v5);
+timer_setup:
+	timer_setup(&adsp->boot_timer, read_early_boot_register, 0);
+	init_completion(&adsp->q6v5.subsys_booted);
 
+	read_early_boot_register(&(adsp->boot_timer));
+
+	wait_for_completion(&adsp->q6v5.subsys_booted);
+	del_timer(&adsp->boot_timer);
+
+	ret = ping_subsystem(&adsp->q6v5);
+
+	if (ret) {
+		dev_err(adsp->dev, "Timed out on ping/pong, assuming device crashed\n");
+		rproc->state = RPROC_CRASHED;
+	}
+	adsp->q6v5.running = true;
 	return ret;
 }
 
@@ -1637,6 +1715,28 @@ void qcom_rproc_update_recovery_status(struct rproc *rproc, bool enable)
 }
 EXPORT_SYMBOL(qcom_rproc_update_recovery_status);
 
+static int adsp_setup_wakeup(struct qcom_adsp *adsp)
+{
+	int ret;
+
+	if (!adsp) {
+		dev_err(adsp->dev, "Invalid adsp or q6v5\n");
+		return -EINVAL;
+	}
+	ret = device_init_wakeup(adsp->dev, true);
+	if (ret) {
+		dev_err(adsp->dev, "failed to set device for wakeup\n");
+		return ret;
+	}
+	ret = dev_pm_set_wake_irq(adsp->dev, adsp->q6v5.wdog_irq);
+	if (ret) {
+		dev_err(adsp->dev, "failed to set wake_irq for wdog\n");
+		device_init_wakeup(adsp->dev, false);
+	}
+
+	return ret;
+}
+
 static int adsp_probe(struct platform_device *pdev)
 {
 	const struct adsp_data *desc;
@@ -1723,32 +1823,28 @@ static int adsp_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, adsp);
 
-	ret = device_init_wakeup(adsp->dev, true);
+	ret = adsp_alloc_memory_region(adsp);
 	if (ret)
 		goto free_dtb_firmware;
 
-	ret = adsp_alloc_memory_region(adsp);
-	if (ret)
-		goto deinit_wakeup_source;
-
 	ret = adsp_setup_32b_dma_allocs(adsp);
 	if (ret)
-		goto deinit_wakeup_source;
+		goto free_dtb_firmware;
 
 	ret = adsp_init_clock(adsp);
 	if (ret)
-		goto deinit_wakeup_source;
+		goto free_dtb_firmware;
 
 	ret = adsp_init_regulator(adsp);
 	if (ret)
-		goto deinit_wakeup_source;
+		goto free_dtb_firmware;
 
 	adsp_init_bus_scaling(adsp);
 
 	ret = adsp_pds_attach(&pdev->dev, adsp->active_pds,
 			      desc->active_pd_names);
 	if (ret < 0)
-		goto deinit_wakeup_source;
+		goto free_dtb_firmware;
 	adsp->active_pd_count = ret;
 
 	ret = adsp_pds_attach(&pdev->dev, adsp->proxy_pds,
@@ -1767,26 +1863,30 @@ static int adsp_probe(struct platform_device *pdev)
 	}
 
 	ret = qcom_q6v5_init(&adsp->q6v5, pdev, rproc, desc->crash_reason_smem,
-			     qcom_pas_handover);
+			     desc->early_boot, qcom_pas_handover);
 
 	if (ret)
 		goto detach_proxy_pds;
 
+	ret = adsp_setup_wakeup(adsp);
+	if (ret)
+		goto deinit_wakeup_source;
+
 	if (adsp->check_status) {
 		if (rproc_find_status_register(adsp))
-			goto detach_proxy_pds;
+			goto deinit_wakeup_source;
 		adsp->wake_state = devm_qcom_smem_state_get(&pdev->dev, "wakeup", &adsp->wake_bit);
 
 		if (IS_ERR(adsp->wake_state)) {
 			dev_err(&pdev->dev, "failed to acquire wake state\n");
-			goto detach_proxy_pds;
+			goto deinit_wakeup_source;
 		}
 
 		adsp->sleep_state = devm_qcom_smem_state_get(&pdev->dev, "sleep", &adsp->sleep_bit);
 
 		if (IS_ERR(adsp->sleep_state)) {
 			dev_err(&pdev->dev, "failed to acquire sleep state\n");
-			goto detach_proxy_pds;
+			goto deinit_wakeup_source;
 		}
 
 		mutex_init(&adsp->adsp_lock);
@@ -1808,7 +1908,7 @@ static int adsp_probe(struct platform_device *pdev)
 					      desc->ssctl_id);
 	if (IS_ERR(adsp->sysmon)) {
 		ret = PTR_ERR(adsp->sysmon);
-		goto detach_proxy_pds;
+		goto deinit_wakeup_source;
 	}
 
 	qcom_add_ssr_subdev(rproc, &adsp->ssr_subdev, desc->ssr_name);
@@ -1820,6 +1920,21 @@ static int adsp_probe(struct platform_device *pdev)
 	adsp->minidump_dev = qcom_create_ramdump_device(md_dev_name, NULL);
 	if (!adsp->minidump_dev)
 		dev_err(&pdev->dev, "Unable to create %s minidump device.\n", md_dev_name);
+
+
+	/*
+	 * Read back the smp2p slave bits to check if the Subsystem has been
+	 * brought out of reset by another entitiy before kernel entry
+	 */
+	if (adsp->q6v5.early_boot) {
+		adsp->rproc->state = RPROC_DETACHED;
+		ret = ping_subsystem_init(&adsp->q6v5, pdev);
+		if (ret) {
+			dev_err(&pdev->dev, "Unable to find ping/pong bits\n");
+			qcom_remove_sysmon_subdev(adsp->sysmon);
+			return ret;
+		}
+	}
 
 	ret = rproc_add(rproc);
 	if (ret)
@@ -1855,17 +1970,17 @@ destroy_minidump_dev:
 	device_remove_file(adsp->dev, &dev_attr_txn_id);
 remove_subdevs:
 	qcom_remove_sysmon_subdev(adsp->sysmon);
+deinit_wakeup_source:
+	dev_pm_clear_wake_irq(adsp->dev);
+	device_init_wakeup(adsp->dev, false);
 detach_proxy_pds:
 	adsp_pds_detach(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
 detach_active_pds:
 	adsp_pds_detach(adsp, adsp->active_pds, adsp->active_pd_count);
-deinit_wakeup_source:
-	device_init_wakeup(adsp->dev, false);
 free_dtb_firmware:
 	if (adsp->dtb_fw_name)
 		kfree_const(adsp->dtb_fw_name);
 free_rproc:
-	device_init_wakeup(adsp->dev, false);
 	rproc_free(rproc);
 
 	return ret;
@@ -1889,6 +2004,7 @@ static int adsp_remove(struct platform_device *pdev)
 	if (adsp->check_status)
 		atomic_notifier_chain_unregister(&panic_notifier_list, &adsp->panic_blk);
 	adsp_pds_detach(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
+	dev_pm_clear_wake_irq(adsp->dev);
 	device_init_wakeup(adsp->dev, false);
 	rproc_free(adsp->rproc);
 
@@ -1945,6 +2061,19 @@ static const struct adsp_data sm8150_adsp_resource = {
 		.sysmon_name = "adsp",
 		.qmp_name = "adsp",
 		.ssctl_id = 0x14,
+};
+
+static const struct adsp_data sm8150_mpss_resource = {
+	.crash_reason_smem = 421,
+	.firmware_name = "modem.mdt",
+	.pas_id = 4,
+	.minidump_id = 3,
+	.has_aggre2_clk = false,
+	.auto_boot = true,
+	.ssr_name = "mpss",
+	.qmp_name = "modem",
+	.sysmon_name = "modem",
+	.ssctl_id = 0x12,
 };
 
 static const struct adsp_data sm8250_adsp_resource = {
@@ -2329,7 +2458,7 @@ static const struct adsp_data seraph_cdsp_resource = {
 	.uses_elf64 = true,
 	.has_aggre2_clk = false,
 	.auto_boot = false,
-	.hyp_assign_mem = true,
+	.hyp_assign_mem = false,
 	.ssr_name = "cdsp",
 	.sysmon_name = "cdsp",
 	.qmp_name = "cdsp",
@@ -2855,6 +2984,20 @@ static const struct adsp_data niobe_soccp_resource = {
 	.auto_boot = true,
 };
 
+static const struct adsp_data seraph_soccp_resource = {
+	.crash_reason_smem = 656,
+	.firmware_name = "soccp.mbn",
+	.dtb_firmware_name = "soccp_dtb.mbn",
+	.pas_id = 51,
+	.dtb_pas_id = 0x41,
+	.minidump_id = 24,
+	.uses_elf64 = true,
+	.ssr_name = "soccp",
+	.sysmon_name = "soccp",
+	.early_boot = true,
+	.auto_boot = true,
+};
+
 static const struct adsp_data monaco_auto_gpdsp_resource = {
 	.crash_reason_smem = 640,
 	.firmware_name = "gpdsp0.mdt",
@@ -2930,7 +3073,7 @@ static const struct of_device_id adsp_of_match[] = {
 	{ .compatible = "qcom,sm6150-cdsp-pas", .data = &sm6150_cdsp_resource},
 	{ .compatible = "qcom,sm8150-adsp-pas", .data = &sm8150_adsp_resource},
 	{ .compatible = "qcom,sm8150-cdsp-pas", .data = &sm8150_cdsp_resource},
-	{ .compatible = "qcom,sm8150-mpss-pas", .data = &mpss_resource_init},
+	{ .compatible = "qcom,sm8150-mpss-pas", .data = &sm8150_mpss_resource},
 	{ .compatible = "qcom,sm8150-slpi-pas", .data = &sm8150_slpi_resource},
 	{ .compatible = "qcom,sm8250-adsp-pas", .data = &sm8250_adsp_resource},
 	{ .compatible = "qcom,sm8250-cdsp-pas", .data = &sm8250_cdsp_resource},
@@ -2976,6 +3119,7 @@ static const struct of_device_id adsp_of_match[] = {
 	{ .compatible = "qcom,pitti-adsp-pas", .data = &pitti_adsp_resource},
 	{ .compatible = "qcom,pitti-modem-pas", .data = &pitti_mpss_resource},
 	{ .compatible = "qcom,niobe-soccp-pas", .data = &niobe_soccp_resource},
+	{ .compatible = "qcom,seraph-soccp-pas", .data = &seraph_soccp_resource},
 	{ .compatible = "qcom,volcano-wpss-pas", .data = &volcano_wpss_resource},
 	{ .compatible = "qcom,volcano-adsp-pas", .data = &volcano_adsp_resource},
 	{ .compatible = "qcom,volcano-modem-pas", .data = &volcano_mpss_resource},

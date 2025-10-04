@@ -1197,6 +1197,7 @@ struct iqs7211_private {
 	u16 event_mask;
 	u16 ati_start;
 	u16 gesture_cache;
+	u8 tp_settings;
 };
 
 static int iqs7211_irq_poll(struct iqs7211_private *iqs7211, u64 timeout_us)
@@ -1416,6 +1417,33 @@ static int iqs7211_write_word(struct iqs7211_private *iqs7211, u8 reg, u16 val)
 	return iqs7211_write_burst(iqs7211, reg, &val_buf, sizeof(val_buf));
 }
 
+static int iqs7211_parse_tp_settings(struct iqs7211_private *iqs7211)
+{
+	struct i2c_client *client = iqs7211->client;
+	int error;
+	int val;
+
+	error = device_property_read_u32(&client->dev,
+					"azoteq,tp_settings", &val);
+	if (error == -EINVAL) {
+		return 0;
+	} else if (error) {
+		dev_err(&client->dev, "Failed to read tp_setting: %d\n",
+			error);
+		return error;
+	}
+
+	if (val & 0xFFFFFF00) {
+		dev_warn(&client->dev, "The tp_setting is an 8-bit unsigned integer. Mask the higher bits of 0x%x to 0x%x.\n",
+			val, (val & 0xFF));
+		val = val & 0xFF;
+	}
+
+	iqs7211->tp_settings = (u8)val;
+
+	return 0;
+}
+
 static int iqs7211_start_comms(struct iqs7211_private *iqs7211)
 {
 	const struct iqs7211_dev_desc *dev_desc = iqs7211->dev_desc;
@@ -1574,6 +1602,9 @@ static int iqs7211_init_device(struct iqs7211_private *iqs7211)
 		if (error)
 			return error;
 	}
+
+	if (iqs7211->tp_settings > 0)
+		iqs7211->tp_config.tp_settings |= iqs7211->tp_settings;
 
 	error = iqs7211_write_burst(iqs7211, dev_desc->tp_config,
 				    &iqs7211->tp_config,
@@ -1754,11 +1785,12 @@ static int iqs7211_parse_cycles(struct iqs7211_private *iqs7211,
 	int num_cycles = dev_desc->cycle_limit[0] + dev_desc->cycle_limit[1];
 	int error, count, i, j, k, cycle_start;
 	unsigned int cycle_alloc[IQS7211_MAX_CYCLES][2];
+	unsigned int *cycle_ptr = cycle_alloc[0];
 	u8 total_rx = iqs7211->tp_config.total_rx;
 	u8 total_tx = iqs7211->tp_config.total_tx;
 
 	for (i = 0; i < IQS7211_MAX_CYCLES * 2; i++)
-		*(cycle_alloc[0] + i) = U8_MAX;
+		*(cycle_ptr + i) = U8_MAX;
 
 	count = fwnode_property_count_u32(tp_node, "azoteq,channel-select");
 	if (count == -EINVAL) {
@@ -1820,8 +1852,7 @@ static int iqs7211_parse_cycles(struct iqs7211_private *iqs7211,
 		}
 
 		for (i = 0; i < count; i++) {
-			int chan = *(cycle_alloc[0] + i);
-
+			int chan = *(cycle_ptr + i);
 			if (chan == U8_MAX)
 				continue;
 
@@ -1832,7 +1863,7 @@ static int iqs7211_parse_cycles(struct iqs7211_private *iqs7211,
 			}
 
 			for (j = 0; j < count; j++) {
-				if (j == i || *(cycle_alloc[0] + j) != chan)
+				if (j == i || *(cycle_ptr + j) != chan)
 					continue;
 
 				dev_err(&client->dev, "Duplicate channel: %d\n",
@@ -2128,6 +2159,7 @@ static int iqs7211_register_kp(struct iqs7211_private *iqs7211)
 	return error;
 }
 
+#ifdef ENABLE_TP
 static int iqs7211_register_tp(struct iqs7211_private *iqs7211)
 {
 	const struct iqs7211_dev_desc *dev_desc = iqs7211->dev_desc;
@@ -2204,6 +2236,7 @@ static int iqs7211_register_tp(struct iqs7211_private *iqs7211)
 
 	return error;
 }
+#endif
 
 static int iqs7211_report(struct iqs7211_private *iqs7211)
 {
@@ -2244,6 +2277,7 @@ static int iqs7211_report(struct iqs7211_private *iqs7211)
 		return 0;
 	}
 
+#ifdef ENABLE_TP
 	for (i = 0; i < iqs7211->num_contacts; i++) {
 		u16 pressure;
 
@@ -2267,6 +2301,7 @@ static int iqs7211_report(struct iqs7211_private *iqs7211)
 		input_mt_sync_frame(iqs7211->tp_idev);
 		input_sync(iqs7211->tp_idev);
 	}
+#endif
 
 	if (!iqs7211->kp_idev)
 		return 0;
@@ -2343,6 +2378,34 @@ static irqreturn_t iqs7211_irq(int irq, void *context)
 	return iqs7211_report(iqs7211) ? IRQ_NONE : IRQ_HANDLED;
 }
 
+static ssize_t iqs7211_ati_status_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct iqs7211_private *iqs7211 = dev_get_drvdata(dev);
+	const struct iqs7211_dev_desc *dev_desc = iqs7211->dev_desc;
+	int error;
+	__le16 val_buf;
+	int value;
+
+	if (!dev_desc->suspend || device_may_wakeup(dev))
+		return 0;
+
+	disable_irq(gpiod_to_irq(iqs7211->irq_gpio));
+
+	/*info flags register to get ati error status*/
+	error = iqs7211_read_burst(iqs7211, dev_desc->sys_stat +
+			dev_desc->info_offs, &val_buf, sizeof(val_buf));
+
+	enable_irq(gpiod_to_irq(iqs7211->irq_gpio));
+
+	if (error)
+		return -EFAULT;
+	value = (le16_to_cpu(val_buf) & 0x08) >> 3;
+	return scnprintf(buf, PAGE_SIZE, "%d\n", value);
+}
+
+static DEVICE_ATTR_RO(iqs7211_ati_status);
+
 static int iqs7211_suspend(struct device *dev)
 {
 	struct iqs7211_private *iqs7211 = dev_get_drvdata(dev);
@@ -2371,6 +2434,7 @@ static int iqs7211_resume(struct device *dev)
 {
 	struct iqs7211_private *iqs7211 = dev_get_drvdata(dev);
 	const struct iqs7211_dev_desc *dev_desc = iqs7211->dev_desc;
+
 	__le16 sys_ctrl[] = {
 		0,
 		cpu_to_le16(iqs7211->event_mask),
@@ -2434,7 +2498,8 @@ static const struct of_device_id iqs7211_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, iqs7211_of_match);
 
-static int iqs7211_probe(struct i2c_client *client)
+static int iqs7211_probe(struct i2c_client *client,
+		const struct i2c_device_id *id)
 {
 	struct iqs7211_private *iqs7211;
 	enum iqs7211_reg_grp_id reg_grp;
@@ -2494,6 +2559,10 @@ static int iqs7211_probe(struct i2c_client *client)
 	if (error)
 		return error;
 
+	error = iqs7211_parse_tp_settings(iqs7211);
+	if (error)
+		return error;
+
 	for (reg_grp = 0; reg_grp < IQS7211_NUM_REG_GRPS; reg_grp++) {
 		const char *reg_grp_name = iqs7211_reg_grp_names[reg_grp];
 		struct fwnode_handle *reg_grp_node;
@@ -2517,13 +2586,17 @@ static int iqs7211_probe(struct i2c_client *client)
 	if (error)
 		return error;
 
+#ifdef ENABLE_TP
 	error = iqs7211_register_tp(iqs7211);
 	if (error)
 		return error;
+#endif
 
 	error = iqs7211_init_device(iqs7211);
 	if (error)
 		return error;
+
+	device_create_file(&client->dev, &dev_attr_iqs7211_ati_status);
 
 	irq = gpiod_to_irq(iqs7211->irq_gpio);
 	if (irq < 0)

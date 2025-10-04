@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
 
 /* Disable MMIO tracing to prevent excessive logging of unwanted MMIO traces */
 #define __DISABLE_TRACE_MMIO__
@@ -21,6 +21,7 @@
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/slab.h>
+#include <linux/suspend.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <dt-bindings/interconnect/qcom,icc.h>
@@ -223,13 +224,14 @@ static void qcom_geni_serial_config_port(struct uart_port *uport, int cfg_flags)
 static unsigned int qcom_geni_serial_get_mctrl(struct uart_port *uport)
 {
 	unsigned int mctrl = TIOCM_DSR | TIOCM_CAR;
+	struct qcom_geni_serial_port *port = to_dev_port(uport);
 	u32 geni_ios;
 
 	if (uart_console(uport)) {
 		mctrl |= TIOCM_CTS;
 	} else {
 		geni_ios = readl(uport->membase + SE_GENI_IOS);
-		if (!(geni_ios & IO2_DATA_IN))
+		if (!(geni_ios & IO2_DATA_IN) || port->loopback)
 			mctrl |= TIOCM_CTS;
 	}
 
@@ -778,16 +780,22 @@ static void qcom_geni_serial_start_rx_fifo(struct uart_port *uport)
 static void qcom_geni_serial_stop_rx_dma(struct uart_port *uport)
 {
 	struct qcom_geni_serial_port *port = to_dev_port(uport);
+	bool done;
 
 	if (!qcom_geni_serial_secondary_active(uport))
 		return;
 
 	geni_se_cancel_s_cmd(&port->se);
-	qcom_geni_serial_poll_bit(uport, SE_GENI_S_IRQ_STATUS,
-				  S_CMD_CANCEL_EN, true);
-
-	if (qcom_geni_serial_secondary_active(uport))
+	done = qcom_geni_serial_poll_bit(uport, SE_DMA_RX_IRQ_STAT, RX_EOT, true);
+	if (done) {
+		writel(RX_EOT | RX_DMA_DONE, uport->membase + SE_DMA_RX_IRQ_CLR);
+	} else {
 		qcom_geni_serial_abort_rx(uport);
+
+		writel(1, uport->membase + SE_DMA_RX_FSM_RST);
+		qcom_geni_serial_poll_bit(uport, SE_DMA_RX_IRQ_STAT, RX_RESET_DONE, true);
+		writel(RX_RESET_DONE | RX_DMA_DONE, uport->membase + SE_DMA_RX_IRQ_CLR);
+	}
 
 	if (port->rx_dma_addr) {
 		geni_se_rx_dma_unprep(&port->se, port->rx_dma_addr,
@@ -1698,10 +1706,12 @@ static int geni_serial_power_state(struct uart_port *uport, bool power_on)
 	struct device *pwr_dev = port->pd_list->pd_devs[DOMAIN_IDX_POWER];
 	int ret;
 
-	if (power_on)
+	if (power_on) {
 		ret = pm_runtime_resume_and_get(pwr_dev);
-	else
+	} else {
+		port->dev_data->geni_serial_set_rate(uport, 300);
 		ret = pm_runtime_put_sync(pwr_dev);
+	}
 
 	if (ret)
 		dev_err(port->se.dev, "failed to switch power state(high=%d) ret=%d\n",
@@ -1973,6 +1983,9 @@ static int qcom_geni_serial_sys_resume(struct device *dev)
 	struct qcom_geni_serial_port *port = dev_get_drvdata(dev);
 	struct uart_port *uport = &port->uport;
 	struct qcom_geni_private_data *private_data = uport->private_data;
+
+	if (pm_suspend_target_state == PM_SUSPEND_MEM)
+		port->setup = false;
 
 	ret = uart_resume_port(private_data->drv, uport);
 	if (uart_console(uport))

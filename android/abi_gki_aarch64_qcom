@@ -113,6 +113,7 @@
   blk_mq_free_tag_set
   blk_mq_map_queues
   blk_mq_quiesce_queue
+  blk_mq_quiesce_queue_nowait
   blk_mq_requeue_request
   blk_mq_rq_cpu
   blk_mq_start_request
@@ -553,6 +554,7 @@
   device_create_with_groups
   device_del
   device_destroy
+  device_find_any_child
   device_find_child
   device_for_each_child
   device_for_each_child_reverse
@@ -694,6 +696,7 @@
   dev_open
   dev_pm_clear_wake_irq
   dev_pm_domain_attach
+  dev_pm_domain_attach_by_id
   dev_pm_domain_attach_by_name
   dev_pm_domain_detach
   dev_pm_genpd_add_notifier
@@ -2328,6 +2331,7 @@
   pci_dev_put
   pci_disable_device
   pci_disable_msi
+  pci_ecam_create
   pci_ecam_map_bus
   pcie_capability_clear_and_set_word
   pcie_capability_read_dword
@@ -4197,8 +4201,8 @@
   xa_find_after
   __xa_insert
   xa_load
-  xa_store
   xas_load
+  xa_store
   xdp_convert_zc_to_xdp_frame
   xdp_do_flush
   xdp_do_redirect

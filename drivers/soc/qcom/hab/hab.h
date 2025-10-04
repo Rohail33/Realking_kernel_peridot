@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 #ifndef __HAB_H
 #define __HAB_H
@@ -66,7 +66,13 @@ enum hab_payload_type {
 #define DEVICE_XVM3_NAME "hab_xvm3"
 #define DEVICE_VNW1_NAME "hab_vnw1"
 #define DEVICE_EXT1_NAME "hab_ext1"
+#define DEVICE_EXT2_NAME "hab_ext2"
+#define DEVICE_EXT3_NAME "hab_ext3"
 #define DEVICE_GPCE1_NAME "hab_gpce1"
+#define DEVICE_SOCCP1_NAME "hab_soccp1"
+#define DEVICE_DPRX1_NAME "hab_dprx1"
+#define DEVICE_DPRX2_NAME "hab_dprx2"
+#define DEVICE_EVA1_NAME "hab_eva1"
 
 #define HABCFG_MMID_NUM        26
 #define HAB_MMID_ALL_AREA      0
@@ -104,13 +110,15 @@ enum hab_payload_type {
 #define HABCFG_BE_TRUE         1
 
 #define HABCFG_GET_VMID(_local_cfg_, _vmid_) \
-	((settings)->vmid_mmid_list[_vmid_].vmid)
+	((_local_cfg_)->vmid_mmid_list[_vmid_].vmid)
 #define HABCFG_GET_MMID(_local_cfg_, _vmid_, _mmid_) \
-	((settings)->vmid_mmid_list[_vmid_].mmid[_mmid_])
+	((_local_cfg_)->vmid_mmid_list[_vmid_].mmid[_mmid_])
 #define HABCFG_GET_BE(_local_cfg_, _vmid_, _mmid_) \
-	((settings)->vmid_mmid_list[_vmid_].is_listener[_mmid_])
+	((_local_cfg_)->vmid_mmid_list[_vmid_].is_listener[_mmid_])
 #define HABCFG_GET_KERNEL(_local_cfg_, _vmid_, _mmid_) \
-	((settings)->vmid_mmid_list[_vmid_].kernel_only[_mmid_])
+	((_local_cfg_)->vmid_mmid_list[_vmid_].kernel_only[_mmid_])
+#define HABCFG_GET_DMA_COHERENT(_local_cfg_, _vmid_, _mmid_grp_index_) \
+	((_local_cfg_)->vmid_mmid_list[_vmid_].dma_coherent[_mmid_grp_index_])
 
 struct hab_header {
 	uint32_t id_type;
@@ -302,6 +310,20 @@ struct hab_device {
 	int openq_cnt;
 };
 
+struct virq_uhab_context {
+	struct list_head node; /* managed by the driver */
+	struct kref refcount;
+
+	/* keeps track of virq setup per context */
+	struct list_head virq;
+	int virq_total;
+
+	rwlock_t ctx_lock;
+
+	int kernel;
+	int owner;
+};
+
 struct uhab_context {
 	struct list_head node; /* managed by the driver */
 	struct kref refcount;
@@ -336,9 +358,12 @@ struct uhab_context {
 	int kernel;
 	int owner;
 	/*
-	 * only used for user-space hab client
+	 * For user-space hab client
 	 * if created through /dev/hab-* node, mmid_grp_index = MMID / 100
 	 * if created through /dev/hab node, mmid_grp_index = 0
+	 *
+	 * For kernel hab client
+	 * mmid_grp_index is always 0 as only one single kctx is shared with clients in kernel
 	 */
 	int mmid_grp_index;
 
@@ -354,6 +379,7 @@ struct vmid_mmid_desc {
 	int mmid[HABCFG_MMID_AREA_MAX+1]; /* selected or not */
 	int is_listener[HABCFG_MMID_AREA_MAX+1]; /* yes or no */
 	int kernel_only[HABCFG_MMID_AREA_MAX+1]; /* yes or no */
+	bool dma_coherent[HABCFG_MMID_AREA_MAX+1];
 };
 
 struct local_vmid {
@@ -371,9 +397,13 @@ struct hab_driver {
 	int ndevices;
 	struct hab_device *devp;
 	struct uhab_context *kctx;
+	struct virq_uhab_context *kvirq_ctx;
 
 	struct list_head uctx_list;
 	int ctx_cnt;
+	struct list_head virq_uctx_list;
+	int virq_ctx_cnt;
+
 	spinlock_t drvlock;
 
 	struct list_head imp_list;
@@ -579,6 +609,7 @@ int habmem_hyp_grant(struct virtual_channel *vchan,
 		int *compressed_size,
 		int *export_id);
 
+void habmem_defer_unimp_sent(struct export_desc *export);
 int habmem_hyp_revoke(void *expdata, uint32_t count);
 int habmem_exp_release(struct export_desc_super *exp_super);
 
@@ -588,7 +619,7 @@ void habmem_imp_hyp_close(void *priv, int kernel);
 int habmem_imp_hyp_map(void *imp_ctx, struct hab_import *param,
 		struct export_desc *exp, int kernel);
 
-int habmm_imp_hyp_unmap(void *imp_ctx, struct export_desc *exp, int kernel);
+int habmm_imp_hyp_unmap(void *imp_ctx, struct export_desc *exp, long fcnt_idle);
 
 int habmem_imp_hyp_mmap(struct file *flip, struct vm_area_struct *vma);
 
@@ -719,6 +750,7 @@ int hab_stat_show_vchan(struct hab_driver *drv, char *buf, int sz);
 int hab_stat_show_ctx(struct hab_driver *drv, char *buf, int sz);
 int hab_stat_show_expimp(struct hab_driver *drv, int pid, char *buf, int sz);
 int hab_stat_show_reclaim(struct hab_driver *drv, char *buf, int sz);
+int hab_stat_show_virq(struct hab_driver *drv, char *buf, int sz);
 int hab_stat_init_sub(struct hab_driver *drv);
 int hab_stat_deinit_sub(struct hab_driver *drv);
 

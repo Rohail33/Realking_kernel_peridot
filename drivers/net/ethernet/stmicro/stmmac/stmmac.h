@@ -84,6 +84,7 @@ struct stmmac_tx_queue {
 	dma_addr_t dma_tx_phy;
 	dma_addr_t tx_tail_addr;
 	u32 mss;
+	u32 pid;
 };
 
 struct stmmac_rx_buffer {
@@ -212,7 +213,6 @@ struct stmmac_priv {
 	u32 tx_coal_frames[MTL_MAX_TX_QUEUES];
 	u32 tx_coal_timer[MTL_MAX_TX_QUEUES];
 	u32 rx_coal_frames[MTL_MAX_TX_QUEUES];
-	bool tx_coal_timer_disable;
 
 	int hwts_tx_en;
 	bool tx_path_in_lpi_mode;
