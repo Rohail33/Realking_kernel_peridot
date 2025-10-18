@@ -20,8 +20,9 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 
-
+#ifndef MIN
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
+#endif
 
 
 int write_rb(const char *data, int32_t size);
