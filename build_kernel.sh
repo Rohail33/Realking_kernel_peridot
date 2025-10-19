@@ -187,7 +187,7 @@ if [ $BUILD_HAS_MODULES -gt 0 ]; then
         "wcd937x_dlkm.ko" "wcd937x_slave_dlkm.ko" "wcd938x_dlkm.ko"
         "wcd938x_slave_dlkm.ko" "wcd939x_dlkm.ko" "wcd939x_slave_dlkm.ko"
         "wlan_firmware_service.ko" "xiaomi_touch.ko" "fs19xx_dlkm.ko" "aw882xx_dlkm.ko" "qca_cld3_kiwi_v2.ko"
-        "spf_core_dlkm.ko" "snd_event_dlkm.ko" "gpr_dlkm.ko" "panel_event_notifier.ko" "machine_dlkm.ko" "focaltech_3683g.ko"
+        "spf_core_dlkm.ko" "snd_event_dlkm.ko" "gpr_dlkm.ko" "panel_event_notifier.ko" "machine_dlkm.ko" "focaltech_3683g.ko" "dcvs_boost.ko"
     )
 
     # Find and copy each specified module
