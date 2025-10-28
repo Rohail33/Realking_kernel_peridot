@@ -14,6 +14,9 @@
 #include <linux/minmax.h>
 #include <linux/cpu_boost.h>
 #include <linux/spinlock.h>
+#include <linux/input.h>
+#include <linux/timekeeping.h>
+#include <linux/slab.h>
 
 static struct freq_qos_request boost_max_req[NR_CPUS];
 static DECLARE_BITMAP(boost_max_active, NR_CPUS);
@@ -30,6 +33,85 @@ static atomic_long_t boost_expires = ATOMIC_LONG_INIT(0);
 static struct delayed_work boost_disable_work;
 
 static struct notifier_block boost_policy_nb;
+
+#define KICK_INPUT_WINDOW_MS 5000
+
+static atomic64_t last_input_us = ATOMIC64_INIT(0);
+
+static void cpu_boost_input_event(struct input_handle *handle,
+				  unsigned int type, unsigned int code, int value)
+{
+	atomic64_set(&last_input_us, ktime_to_us(ktime_get()));
+}
+
+static int cpu_boost_input_connect(struct input_handler *handler,
+				   struct input_dev *dev, const struct input_device_id *id)
+{
+	struct input_handle *handle;
+	int error;
+
+	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
+	if (!handle)
+		return -ENOMEM;
+
+	handle->dev = dev;
+	handle->handler = handler;
+	handle->name = "cpu-boost";
+
+	error = input_register_handle(handle);
+	if (error)
+		goto err_register;
+
+	error = input_open_device(handle);
+	if (error)
+		goto err_open;
+	return 0;
+err_open:
+	input_unregister_handle(handle);
+err_register:
+	kfree(handle);
+	return error;
+}
+
+static void cpu_boost_input_disconnect(struct input_handle *handle)
+{
+	input_close_device(handle);
+	input_unregister_handle(handle);
+	kfree(handle);
+}
+
+static const struct input_device_id cpu_boost_input_ids[] = {
+	{ /* multi-touch touchscreen */
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT | INPUT_DEVICE_ID_MATCH_ABSBIT,
+		.evbit = { BIT_MASK(EV_ABS) },
+		.absbit = { [BIT_WORD(ABS_MT_POSITION_X)] =
+			    BIT_MASK(ABS_MT_POSITION_X) |
+			    BIT_MASK(ABS_MT_POSITION_Y) },
+	},
+	{ /* touchpad */
+		.flags = INPUT_DEVICE_ID_MATCH_KEYBIT | INPUT_DEVICE_ID_MATCH_ABSBIT,
+		.keybit = { [BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH) },
+		.absbit = { [BIT_WORD(ABS_X)] = BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) },
+	},
+	{ /* keyboard/keypad */
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT,
+		.evbit = { BIT_MASK(EV_KEY) },
+	},
+	{ /* mouse */
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT | INPUT_DEVICE_ID_MATCH_RELBIT,
+		.evbit = { BIT_MASK(EV_REL) },
+		.relbit = { [BIT_WORD(REL_X)] = BIT_MASK(REL_X) | BIT_MASK(REL_Y) },
+	},
+	{ },
+};
+
+static struct input_handler cpu_boost_input_handler = {
+	.event		= cpu_boost_input_event,
+	.connect	= cpu_boost_input_connect,
+	.disconnect	= cpu_boost_input_disconnect,
+	.name		= "cpu-boost",
+	.id_table	= cpu_boost_input_ids,
+};
 
 static inline bool boost_window_expired(unsigned long now, unsigned long exp)
 {
@@ -169,6 +251,14 @@ EXPORT_SYMBOL_GPL(cpu_boost_max);
 
 void cpu_boost_kick(unsigned int duration_ms)
 {
+	{
+		u64 now_us = ktime_to_us(ktime_get());
+		u64 last_us = atomic64_read(&last_input_us);
+		u64 window_us = (u64)KICK_INPUT_WINDOW_MS * 1000ULL;
+
+		if (!last_us || (now_us - last_us) > window_us)
+			return;
+	}
 	unsigned long now = jiffies;
 	unsigned long new_exp = now + msecs_to_jiffies(duration_ms);
 	unsigned long old = atomic_long_read(&boost_expires);
@@ -215,9 +305,16 @@ static int boost_policy_notifier(struct notifier_block *nb,
 
 static int __init cpu_boost_init(void)
 {
+	int ret;
+
 	INIT_DELAYED_WORK(&boost_disable_work, cpu_boost_worker);
 	boost_policy_nb.notifier_call = boost_policy_notifier;
 	cpufreq_register_notifier(&boost_policy_nb, CPUFREQ_POLICY_NOTIFIER);
+
+	ret = input_register_handler(&cpu_boost_input_handler);
+	if (ret)
+		pr_warn("cpu_boost: input handler register failed (%d)\n", ret);
+
 	pr_info("cpu_boost driver initialized\n");
 	return 0;
 }
