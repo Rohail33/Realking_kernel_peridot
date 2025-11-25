@@ -19,7 +19,7 @@
 #include <linux/spi/spi.h>
 
 #include "goodix_ts_core.h"
-#define TS_DRIVER_NAME		"goodix_core"
+#define TS_DRIVER_NAME		"gtx8_spi"
 
 #define SPI_TRANS_PREFIX_LEN    1
 #define REGISTER_WIDTH          4
@@ -194,7 +194,7 @@ static const struct of_device_id spi_matchs[] = {
 	{.compatible = "goodix,gt9897S",},
 	{.compatible = "goodix,gt9897T",},
 	{.compatible = "goodix,gt9966S",},
-	{.compatible = "goodix,gt9916S",},
+	{.compatible = "goodix,gt9916S2",},
 	{.compatible = "xiaomi,peridot-spi",},
 	{.compatible = "goodix,gt9916R",},
 	{},

@@ -196,7 +196,7 @@
 	pinctrl-1 = <&mi_ts_spi_suspend>, <&mi_ts_spi_cs_suspend>;
 	xiaomi_touch@0 {
 		status = "ok";
-		compatible = "goodix,gt9916R", "focaltech,n16t-3683g-spi";
+		compatible = "goodix,gt9916S2", "focaltech,n16t-3683g-spi";
 		reg = <0x0>;
 		spi-max-frequency = <15000000>;
 		interrupt-parent = <&tlmm>;

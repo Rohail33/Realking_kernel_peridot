@@ -2605,7 +2605,7 @@
 
 			xiaomi_touch@0 {
 				status = "ok";
-				compatible = "goodix,gt9916R\0focaltech,n16t-3683g-spi";
+				compatible = "goodix,gt9916S2\0focaltech,n16t-3683g-spi";
 				reg = <0x00>;
 				spi-max-frequency = <19000000>;
 				interrupt-parent = <0xffffffff>;
