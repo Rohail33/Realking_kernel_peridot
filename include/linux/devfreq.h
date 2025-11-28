@@ -15,6 +15,9 @@
 #include <linux/pm_opp.h>
 #include <linux/pm_qos.h>
 
+void devfreq_register_gpu_kick(void (*cb)(int));
+void devfreq_gpu_kick(int duration_ms);
+
 /* DEVFREQ governor name */
 #define DEVFREQ_GOV_SIMPLE_ONDEMAND	"simple_ondemand"
 #define DEVFREQ_GOV_PERFORMANCE		"performance"

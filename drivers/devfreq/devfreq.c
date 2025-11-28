@@ -36,6 +36,21 @@
 #define IS_SUPPORTED_FLAG(f, name) ((f & DEVFREQ_GOV_FLAG_##name) ? true : false)
 #define IS_SUPPORTED_ATTR(f, name) ((f & DEVFREQ_GOV_ATTR_##name) ? true : false)
 
+static void (*devfreq_gpu_kick_cb)(int) = NULL;
+
+void devfreq_register_gpu_kick(void (*cb)(int))
+{
+	devfreq_gpu_kick_cb = cb;
+}
+EXPORT_SYMBOL(devfreq_register_gpu_kick);
+
+void devfreq_gpu_kick(int duration_ms)
+{
+	if (devfreq_gpu_kick_cb)
+		devfreq_gpu_kick_cb(duration_ms);
+}
+EXPORT_SYMBOL(devfreq_gpu_kick);
+
 static struct class *devfreq_class;
 static struct dentry *devfreq_debugfs;
 
