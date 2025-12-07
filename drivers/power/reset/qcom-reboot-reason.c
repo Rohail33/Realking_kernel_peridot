@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2019, 2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 #define pr_fmt(fmt)     "qcom-reboot-reason: %s: " fmt, __func__
 
@@ -38,6 +38,7 @@ static struct poweroff_reason pon_reasons[] = {
 	{ "dm-verity device corrupted",	0x04, 0x1 },
 	{ "dm-verity enforcing",	0x05, 0x1 },
 	{ "keys clear",			0x06, 0x1 },
+	{ "shipmode",			0x20, 0x2 },
 	{}
 };
 
@@ -69,6 +70,10 @@ static int qcom_reboot_reason_reboot(struct notifier_block *this,
 
 	if (!cmd)
 		return NOTIFY_OK;
+
+	if (of_device_is_compatible(reboot->dev->of_node, "qcom,imem-reboot-reason"))
+		reboot_mode = REBOOT_WARM;
+
 	for (reason = reboot->reasons; reason->cmd; reason++) {
 		if (!strcmp(cmd, reason->cmd)) {
 			rc = nvmem_cell_write(reboot->nvmem_cell,

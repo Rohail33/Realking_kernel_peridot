@@ -2134,9 +2134,6 @@ static const struct rproc_hexagon_res msm8974_mss = {
 			.supply = "mx",
 			.uV = 1050000,
 		},
-		{}
-	},
-	.fallback_proxy_supply = (struct qcom_mss_reg_res[]) {
 		{
 			.supply = "cx",
 			.uA = 100000,

@@ -270,6 +270,9 @@ static const struct vm_operations_struct pad_vma_ops = {
 	.name = pad_vma_name,
 };
 
+/* Defined in kernel/fork.c */
+extern struct kmem_cache *vm_area_cachep;
+
 /*
  * Initialize @pad VMA fields with information from the original @vma.
  */
