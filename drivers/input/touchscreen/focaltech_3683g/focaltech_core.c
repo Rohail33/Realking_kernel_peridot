@@ -2085,8 +2085,10 @@ static int fts_ts_resume(struct device *dev)
 	update_fod_press_status(0);
 
         /* If user enabled 480Hz, re-apply after screen-on */
-        if (ts_data->report_rate_status == 480)
+        if (ts_data->report_rate_status != 240) {
                 fts_switch_report_rate(ts_data, true);
+                fts_switch_edge_filter(ts_data, true);
+        }
 
 	FTS_FUNC_EXIT();
 	return 0;
@@ -2312,6 +2314,45 @@ int fts_switch_report_rate(struct fts_ts_data *cd, bool on)
         return 0;
 }
 
+/**
+ * fts_switch_edge_filter - Switch edge filter/game mode
+ * @ts_data: touch data structure
+ * @enable: true for game mode, false for normal mode
+ *
+ */
+int fts_switch_edge_filter(struct fts_ts_data *ts_data, bool enable)
+{
+    int ret = 0;
+    u8 value = 0;
+
+    if (!ts_data) {
+        FTS_ERROR("ts_data is null");
+        return -EINVAL;
+    }
+
+    if (enable) {
+        // Game mode - use enhanced sensitivity
+        value = 3;
+        ts_data->edge_filter_mode = EDGE_FILTER_GAME;
+    } else {
+        // Normal mode
+        value = 0;
+        ts_data->edge_filter_mode = EDGE_FILTER_NORMAL;
+    }
+
+    ret = fts_write_reg(FTS_REG_EDGE_FILTER_EN, value);
+    if (ret < 0) {
+        FTS_ERROR("Failed to switch edge filter mode to %d, ret=%d", value, ret);
+        return ret;
+    }
+
+    ts_data->edge_filter_value = value;
+    FTS_INFO("Edge filter mode switch: %s (value=0x%02x)",
+             enable ? "GAME" : "NORMAL", value);
+
+    return 0;
+}
+
 static int fts_get_mode_value(int mode, int value_type)
 {
 	int value = -1;
@@ -2362,6 +2403,11 @@ static int fts_set_cur_value(int mode, int value)
               FTS_ERROR("Failed to switch Report_Rate to 480HZ, ret=%d", ret);
               return -EINVAL;
             }
+
+           ret = fts_switch_edge_filter(fts_data, true);
+           if (ret < 0) {
+              FTS_ERROR("Failed to enable game mode edge filter");
+           }
           }
         }
 
@@ -2612,6 +2658,8 @@ int fts_ts_probe_entry(struct fts_ts_data *ts_data)
 	fts_init_xiaomi_touchfeature(ts_data);
 
         ts_data->report_rate_status = 240;
+        ts_data->edge_filter_mode = EDGE_FILTER_NORMAL;
+        ts_data->edge_filter_value = 0;
 
 	FTS_FUNC_EXIT();
 	return 0;

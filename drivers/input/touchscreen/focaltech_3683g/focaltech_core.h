@@ -126,6 +126,8 @@
 
 #define FTS_MAX_STR_LABLE_LEN		40
 
+#define FTS_REG_EDGE_FILTER_EN      0x8C  // Edge filter/game mode register
+
 /*****************************************************************************
 *  Alternative mode (When something goes wrong, the modules may be able to solve the problem.)
 *****************************************************************************/
@@ -210,6 +212,11 @@ struct pen_event {
 	int tilt_y;
 	int azimuth;
 	int tool_type;
+};
+
+enum edge_filter_mode_t {
+	EDGE_FILTER_NORMAL = 0,
+	EDGE_FILTER_GAME = 1,
 };
 
 struct fts_ts_data {
@@ -309,6 +316,9 @@ struct fts_ts_data {
 	int fod_status;
 	u8 gesture_status;
         int report_rate_status;
+
+        enum edge_filter_mode_t edge_filter_mode;
+        int edge_filter_value;
 };
 
 enum GESTURE_MODE_TYPE {
@@ -451,6 +461,7 @@ void fts_fwdbg_handle_reset(struct fts_ts_data *ts_data);
 int fts_fwdbg_recovery(struct fts_ts_data *ts_data);
 
 int fts_switch_report_rate(struct fts_ts_data *cd, bool on);
+int fts_switch_edge_filter(struct fts_ts_data *ts_data, bool enable);
 
 //int fts_fhp_init(struct fts_ts_data *ts_data);
 //void fts_fhp_exit(struct fts_ts_data *ts_data);
