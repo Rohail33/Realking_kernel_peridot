@@ -2395,20 +2395,9 @@ static int fts_set_cur_value(int mode, int value)
 		return 0;
 	}
         if (mode == TOUCH_MODE_REPORT_RATE && value >= 0) {
-          FTS_INFO("Mode:TOUCH_MODE_REPORT_RATE  value=%d", value);
-          if (value != 0) {
-            fts_data->report_rate_status = 480;
-            ret = fts_write_reg(FTS_HIGH_RATE_CMD, true);
-            if (ret < 0) {
-              FTS_ERROR("Failed to switch Report_Rate to 480HZ, ret=%d", ret);
-              return -EINVAL;
-            }
-
-           ret = fts_switch_edge_filter(fts_data, true);
-           if (ret < 0) {
-              FTS_ERROR("Failed to enable game mode edge filter");
-           }
-          }
+                fts_switch_report_rate(fts_data, value != 0 ? true : false);
+                fts_switch_edge_filter(fts_data, value != 0 ? true : false);
+                return 0;
         }
 
 	xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] = value;
