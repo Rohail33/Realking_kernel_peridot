@@ -168,9 +168,8 @@ $BOOTMODE || setenforce 0
 			}
 
 			${bin}/e2fsck -f -y ${home}/vendor_dlkm.img
-			vendor_dlkm_current_size_mb=$(du -bm ${home}/vendor_dlkm.img | awk '{print $1}')
-			vendor_dlkm_target_size_mb=$((vendor_dlkm_current_size_mb + 10))
-			${bin}/resize2fs ${home}/vendor_dlkm.img "${vendor_dlkm_target_size_mb}M" || \
+			vendor_dlkm_target_size_mb="128M"
+			${bin}/resize2fs ${home}/vendor_dlkm.img $vendor_dlkm_target_size_mb || \
 				abort "! Failed to resize vendor_dlkm image!"
 			ui_print "- Resized vendor_dlkm.img size: ${vendor_dlkm_target_size_mb}M."
 			# e2fsck again
