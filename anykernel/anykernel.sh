@@ -161,11 +161,6 @@ $BOOTMODE || setenforce 0
 			# Resize vendor_dlkm image
 			ui_print "- /vendor_dlkm partition does not have enough free space!"
 			ui_print "- Trying to resize..."
-			super_free_space=$(${bin}/lptools_static free | grep '^Free space' | awk '{print $NF}')
-			[ "$super_free_space" -gt "$((10 * 1024 * 1024))" ] || {
-				ui_print "! Super device does not have enough free space!"
-				abort "! We have tried all known methods!"
-			}
 
 			${bin}/e2fsck -f -y ${home}/vendor_dlkm.img
 			vendor_dlkm_target_size_mb="128M"
