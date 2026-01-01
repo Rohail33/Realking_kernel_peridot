@@ -2356,6 +2356,10 @@ int fts_switch_edge_filter(struct fts_ts_data *ts_data, bool enable)
 static int fts_get_mode_value(int mode, int value_type)
 {
 	int value = -1;
+        if (mode == TOUCH_MODE_REPORT_RATE ) {
+                return fts_data->report_rate_status ? 480 : 240;
+        }
+
 	if (mode < Touch_Mode_NUM && mode >= 0) {
 		value = xiaomi_touch_interfaces.touch_mode[mode][value_type];
 		FTS_INFO("mode:%d, value_type:%d, value:%d", mode, value_type,
