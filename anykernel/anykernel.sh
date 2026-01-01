@@ -173,6 +173,9 @@ $BOOTMODE || setenforce 0
 			unset super_free_space vendor_dlkm_current_size_mb vendor_dlkm_target_size_mb
 		}
 
+                {bin}/e2fsck -y -E unshare_blocks ${home}/vendor_dlkm.img
+                 ui_print "Removing unshared blocks from vendor_dlkm.img partition.."
+
 		ui_print "- Trying to mount vendor_dlkm image as read-write..."
 		mount ${home}/vendor_dlkm.img $extract_vendor_dlkm_dir -o rw -t ext4 || \
 			abort "! Failed to mount vendor_dlkm.img as read-write!"
