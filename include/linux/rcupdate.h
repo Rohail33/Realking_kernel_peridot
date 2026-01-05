@@ -69,6 +69,11 @@ static inline bool same_state_synchronize_rcu(unsigned long oldstate1, unsigned 
 	return oldstate1 == oldstate2;
 }
 
+#ifdef CONFIG_RCU_LAZY
+// Implemented in kernel/rcu/tree.c.
+extern void rcu_lazy_set_enabled(bool enable);
+#endif
+
 #ifdef CONFIG_PREEMPT_RCU
 
 void __rcu_read_lock(void);

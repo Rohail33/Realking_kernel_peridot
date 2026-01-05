@@ -1364,9 +1364,14 @@ static int sched_kp_mode_notifier_cb(struct notifier_block *nb,
 			static_branch_disable(&sched_kp_battery_mode);
 	}
 
-	 //Re-account uclamp for all tasks.
+	 // Re-account uclamp for all tasks.
 	if (uclamp_is_used())
 		sched_kp_uclamp_sync_all();
+
+#ifdef CONFIG_RCU_LAZY
+	// Disable lazy RCU only in kp perf mode
+	rcu_lazy_set_enabled(mode != 3);
+#endif
 
 	return NOTIFY_OK;
 }
@@ -1381,6 +1386,12 @@ static int __init sched_kp_mode_notifier_init(void)
 		if (!static_branch_unlikely(&sched_kp_battery_mode))
 			static_branch_enable(&sched_kp_battery_mode);
 	}
+
+	// Disable lazy rcu only in kp perf mode
+#ifdef CONFIG_RCU_LAZY
+	rcu_lazy_set_enabled(kp_active_mode() != 3);
+#endif
+
 	return kp_notifier_register_client(&sched_kp_mode_nb);
 }
 late_initcall(sched_kp_mode_notifier_init);
