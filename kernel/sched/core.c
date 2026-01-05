@@ -64,6 +64,7 @@
 #include <linux/vtime.h>
 #include <linux/wait_api.h>
 #include <linux/workqueue_api.h>
+#include <linux/notifier.h>
 
 #ifdef CONFIG_PREEMPT_DYNAMIC
 # ifdef CONFIG_GENERIC_ENTRY
@@ -1320,6 +1321,70 @@ static void set_load_weight(struct task_struct *p, bool update_load)
 }
 
 #ifdef CONFIG_UCLAMP_TASK
+static inline void uclamp_update_active(struct task_struct *p);
+extern unsigned int KP_MODE_CHANGE;
+extern int kp_notifier_register_client(struct notifier_block *nb);
+extern int kp_active_mode(void);
+
+static DEFINE_STATIC_KEY_FALSE(sched_kp_battery_mode);
+
+static void sched_kp_uclamp_sync_all(void)
+{
+	struct task_struct *g, *p;
+
+	// Mirror of uclamp_sync_util_min_rt_default()
+	read_lock(&tasklist_lock);
+	smp_mb__after_spinlock();
+	read_unlock(&tasklist_lock);
+
+	rcu_read_lock();
+	for_each_process_thread(g, p)
+		uclamp_update_active(p);
+	rcu_read_unlock();
+}
+
+static int sched_kp_mode_notifier_cb(struct notifier_block *nb,
+				     unsigned long action, void *data)
+{
+	unsigned int mode;
+	bool battery;
+
+	if (action != KP_MODE_CHANGE)
+		return NOTIFY_DONE;
+
+	mode = (unsigned int)(uintptr_t)data;
+	battery = (mode == 1);
+
+	// Update cached battery mode
+	if (battery) {
+		if (!static_branch_unlikely(&sched_kp_battery_mode))
+			static_branch_enable(&sched_kp_battery_mode);
+	} else {
+		if (static_branch_unlikely(&sched_kp_battery_mode))
+			static_branch_disable(&sched_kp_battery_mode);
+	}
+
+	 //Re-account uclamp for all tasks.
+	if (uclamp_is_used())
+		sched_kp_uclamp_sync_all();
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block sched_kp_mode_nb = {
+	.notifier_call = sched_kp_mode_notifier_cb,
+};
+
+static int __init sched_kp_mode_notifier_init(void)
+{
+	if (kp_active_mode() == 1) {
+		if (!static_branch_unlikely(&sched_kp_battery_mode))
+			static_branch_enable(&sched_kp_battery_mode);
+	}
+	return kp_notifier_register_client(&sched_kp_mode_nb);
+}
+late_initcall(sched_kp_mode_notifier_init);
+
 /*
  * Serializes updates of utilization clamp values
  *
@@ -1531,6 +1596,13 @@ uclamp_eff_get(struct task_struct *p, enum uclamp_id clamp_id)
 	if (ret)
 		return uc_eff;
 
+	// Battery kprofile override
+	if (clamp_id == UCLAMP_MIN &&
+	    static_branch_unlikely(&sched_kp_battery_mode)) {
+		uclamp_se_set(&uc_req, 0, false);
+		return uc_req;
+	}
+
 	/* System default restrictions always apply */
 	if (unlikely(uc_req.value > uc_max.value))
 		return uc_max;
@@ -1541,6 +1613,11 @@ uclamp_eff_get(struct task_struct *p, enum uclamp_id clamp_id)
 unsigned long uclamp_eff_value(struct task_struct *p, enum uclamp_id clamp_id)
 {
 	struct uclamp_se uc_eff;
+
+	// Battery kprofile override
+	if (clamp_id == UCLAMP_MIN &&
+	    static_branch_unlikely(&sched_kp_battery_mode))
+		return 0;
 
 	/* Task currently refcounted: use back-annotated (effective) value */
 	if (p->uclamp[clamp_id].active)
