@@ -17119,19 +17119,6 @@ static int wlan_hdd_cfg80211_sap_configuration_set(struct wiphy *wiphy,
 }
 
 /**
- * wlan_hdd_process_wake_lock_stats() - wrapper function to absract cp_stats
- * or legacy get_wake_lock_stats API.
- * @hdd_ctx: pointer to hdd_ctx
- *
- * Return: 0 on success; error number otherwise.
- */
-static int wlan_hdd_process_wake_lock_stats(struct hdd_context *hdd_ctx)
-{
-	return wlan_cfg80211_mc_cp_stats_get_wakelock_stats(hdd_ctx->psoc,
-							    hdd_ctx->wiphy);
-}
-
-/**
  * __wlan_hdd_cfg80211_get_wakelock_stats() - gets wake lock stats
  * @wiphy: wiphy pointer
  * @wdev: pointer to struct wireless_dev
@@ -17146,27 +17133,15 @@ static int wlan_hdd_process_wake_lock_stats(struct hdd_context *hdd_ctx)
  * Return: 0 on success; error number otherwise.
  */
 static int __wlan_hdd_cfg80211_get_wakelock_stats(struct wiphy *wiphy,
-					struct wireless_dev *wdev,
-					const void *data,
-					int data_len)
+						struct wireless_dev *wdev,
+						const void *data,
+						int data_len)
 {
-	int ret;
-	struct hdd_context *hdd_ctx = wiphy_priv(wiphy);
-
-	hdd_enter();
-
-	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
-		hdd_err("Command not allowed in FTM mode");
-		return -EINVAL;
-	}
-
-	ret = wlan_hdd_validate_context(hdd_ctx);
-	if (0 != ret)
-		return -EINVAL;
-
-	ret = wlan_hdd_process_wake_lock_stats(hdd_ctx);
-	hdd_exit();
-	return ret;
+	(void)wiphy;
+	(void)wdev;
+	(void)data;
+	(void)data_len;
+	return -EOPNOTSUPP;
 }
 
 /**

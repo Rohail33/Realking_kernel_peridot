@@ -677,7 +677,6 @@
 #define NBUF_MAP_UNMAP_DEBUG (1)
 #define TIMER_MANAGER (1)
 #define WLAN_DELAYED_WORK_DEBUG (1)
-#define WLAN_WAKE_LOCK_DEBUG (1)
 #define WLAN_PERIODIC_WORK_DEBUG (1)
 
 #endif

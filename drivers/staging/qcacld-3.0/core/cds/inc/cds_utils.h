@@ -104,13 +104,12 @@ uint8_t cds_get_mmie_size(void);
 uint8_t cds_get_gmac_mmie_size(void);
 
 static inline void cds_host_diag_log_work(qdf_wake_lock_t *lock, uint32_t msec,
-			    uint32_t reason) {
-	if (((cds_get_ring_log_level(RING_ID_WAKELOCK) >= WLAN_LOG_LEVEL_ACTIVE)
-	     && (WIFI_POWER_EVENT_WAKELOCK_HOLD_RX == reason)) ||
-	    (WIFI_POWER_EVENT_WAKELOCK_HOLD_RX != reason)) {
-		host_diag_log_wlock(reason, qdf_wake_lock_name(lock),
-				    msec, WIFI_POWER_EVENT_WAKELOCK_TAKEN);
-	}
+			    uint32_t reason)
+{
+	/* Wakelock debugging/logging disabled. */
+	(void)lock;
+	(void)msec;
+	(void)reason;
 }
 
 /**
