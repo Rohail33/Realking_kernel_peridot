@@ -22,7 +22,6 @@
 #include <linux/bitmap.h>
 #include <linux/netdevice.h>
 #include <linux/kernel.h>
-#include <linux/pm_wakeup.h>
 #include <linux/smp.h>
 #include <linux/ipv6.h>
 #include <linux/netdevice.h>
@@ -156,7 +155,7 @@ DATARMNETecc0627c70.hrtimer_wake,ns_to_ktime((0xbf7+4070-0x172d)*
 DATARMNET68fc0be252),HRTIMER_MODE_REL|HRTIMER_MODE_PINNED);DATARMNET064fbe9e3a=
 (0xd1f+216-0xdf5);}else{hrtimer_start(&DATARMNETecc0627c70.hrtimer_wake,
 ns_to_ktime((0xbf7+4070-0x172d)*DATARMNET68fc0be252),HRTIMER_MODE_REL|
-HRTIMER_MODE_PINNED);__pm_stay_awake(DATARMNETecc0627c70.ws);DATARMNET064fbe9e3a
+HRTIMER_MODE_PINNED);DATARMNET064fbe9e3a
 =(0xd1f+216-0xdf5);}if(!hrtimer_active(&DATARMNETecc0627c70.DATARMNET645fb3b468)
 ){hrtimer_start(&DATARMNETecc0627c70.DATARMNET645fb3b468,ns_to_ktime(
 (0xdf7+3019-0x160c)*DATARMNET68fc0be252),HRTIMER_MODE_REL|HRTIMER_MODE_PINNED);
@@ -188,7 +187,7 @@ DATARMNETecc0627c70.hrtimer_wake,ns_to_ktime((0xbf7+4070-0x172d)*
 DATARMNET68fc0be252),HRTIMER_MODE_REL|HRTIMER_MODE_PINNED);DATARMNET064fbe9e3a=
 (0xd1f+216-0xdf5);}else{hrtimer_start(&DATARMNETecc0627c70.hrtimer_wake,
 ns_to_ktime((0xbf7+4070-0x172d)*DATARMNET68fc0be252),HRTIMER_MODE_REL|
-HRTIMER_MODE_PINNED);__pm_stay_awake(DATARMNETecc0627c70.ws);DATARMNET064fbe9e3a
+HRTIMER_MODE_PINNED);DATARMNET064fbe9e3a
 =(0xd1f+216-0xdf5);}if(!hrtimer_active(&DATARMNETecc0627c70.DATARMNET645fb3b468)
 ){hrtimer_start(&DATARMNETecc0627c70.DATARMNET645fb3b468,ns_to_ktime(
 (0xdf7+3019-0x160c)*DATARMNET68fc0be252),HRTIMER_MODE_REL|HRTIMER_MODE_PINNED);
@@ -681,7 +680,7 @@ DATARMNET52de1f3dc0(DATARMNET4510abc30d,DATARMNET83147a2e7d,DATARMNETecc0627c70.
 DATARMNET34097703c8,(0x16e8+787-0xc0c),(0x16e8+787-0xc0c),(0x16e8+787-0xc0c),
 NULL,NULL);schedule_work((struct work_struct*)&shs_rx_work);}}return ret;}enum 
 hrtimer_restart DATARMNET2ba63fbd90(struct hrtimer*DATARMNET6e4292679f){const 
-enum hrtimer_restart ret=HRTIMER_NORESTART;__pm_relax(DATARMNETecc0627c70.ws);
+enum hrtimer_restart ret=HRTIMER_NORESTART;
 DATARMNET064fbe9e3a=(0xd26+209-0xdf6);return ret;}enum hrtimer_restart 
 DATARMNETc2b0dbbb32(struct hrtimer*DATARMNET6e4292679f){const enum 
 hrtimer_restart ret=HRTIMER_NORESTART;struct DATARMNET177911299b 
@@ -821,8 +820,7 @@ DATARMNET44499733f2();rc=register_oom_notifier(&DATARMNET105c85d84c);if(rc<
 "\x52\x6d\x6e\x65\x74\x5f\x73\x68\x73\x5f\x6f\x6f\x6d\x20\x72\x65\x67\x69\x73\x74\x65\x72\x20\x66\x61\x69\x6c\x75\x72\x65"
 );}pr_info(
 "\x72\x6d\x6e\x65\x74\x5f\x73\x68\x73\x20\x69\x6e\x69\x74\x20\x77\x69\x74\x68\x20\x25\x78"
-,DATARMNETecc0627c70.map_mask);DATARMNETecc0627c70.ws=wakeup_source_register(
-NULL,"\x52\x4d\x4e\x45\x54\x5f\x53\x48\x53");DATARMNETecc0627c70.
+,DATARMNETecc0627c70.map_mask);DATARMNETecc0627c70.
 DATARMNETfc89d842ae=(0xd26+209-0xdf6);}void DATARMNETeacad8334e(void){struct 
 hlist_node*tmp;struct DATARMNET63d7680df2*DATARMNET63b1a086d5;struct sk_buff*
 DATARMNET9a788b5480;int bkt;struct sk_buff*buf;if(!DATARMNETecc0627c70.
@@ -1014,7 +1012,7 @@ DATARMNET9c869c1ec2=(0xd2d+202-0xdf7);unregister_oom_notifier(&
 DATARMNET105c85d84c);if(DATARMNETecc0627c70.DATARMNETf5ab31b9b0)hrtimer_cancel(&
 DATARMNETecc0627c70.DATARMNET6fd692fc7a);hrtimer_cancel(&DATARMNETecc0627c70.
 DATARMNET645fb3b468);hrtimer_cancel(&DATARMNETecc0627c70.hrtimer_wake);
-wakeup_source_unregister(DATARMNETecc0627c70.ws);memset(&DATARMNETecc0627c70,
+memset(&DATARMNETecc0627c70,
 (0xd2d+202-0xdf7),sizeof(DATARMNETecc0627c70));DATARMNETecc0627c70.port=NULL;
 DATARMNETecc0627c70.DATARMNETfc89d842ae=(0xd2d+202-0xdf7);DATARMNET12565c8f98=
 DATARMNET9f4bc49c6f;}
