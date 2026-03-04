@@ -12,12 +12,24 @@
 #include "kgsl_pwrscale.h"
 #include "kgsl_trace.h"
 
+#if defined(CONFIG_ARCH_PINEAPPLE) || defined(CONFIG_ARCH_SUN)
+#define KGSL_GOV_POLLING_MS_DEFAULT	2
+#define KGSL_TZ_MOD_PERCENT_DEFAULT	150
+#define KGSL_FAST_BUS_HINT_DEFAULT	true
+#else
+#define KGSL_GOV_POLLING_MS_DEFAULT	10
+#define KGSL_TZ_MOD_PERCENT_DEFAULT	100
+#define KGSL_FAST_BUS_HINT_DEFAULT	false
+#endif
+
+
 static struct devfreq_msm_adreno_tz_data adreno_tz_data = {
 	.bus = {
 		.max = 350,
 		.floating = true,
 	},
-	.mod_percent = 100,
+	.mod_percent = KGSL_TZ_MOD_PERCENT_DEFAULT,
+	.fast_bus_hint = KGSL_FAST_BUS_HINT_DEFAULT,
 };
 
 static void do_devfreq_suspend(struct work_struct *work);
@@ -618,6 +630,12 @@ static void pwrscale_of_ca_aware(struct kgsl_device *device)
 
 	if (!pwrscale->ctxt_aware_enable)
 		return;
+	#if defined(CONFIG_ARCH_PINEAPPLE) || defined(CONFIG_ARCH_SUN)
+	pwrscale->ctxt_aware_busy_penalty = 8000;
+	#else
+	pwrscale->ctxt_aware_busy_penalty = 12000;
+	#endif
+
 
 	pwrscale->ctxt_aware_busy_penalty = 12000;
 	of_property_read_u32(parent, "qcom,ca-busy-penalty",
@@ -710,7 +728,7 @@ int kgsl_pwrscale_init(struct kgsl_device *device, struct platform_device *pdev,
 	gpu_profile->profile.initial_freq =
 		pwr->pwrlevels[pwr->default_pwrlevel].gpu_freq;
 
-	gpu_profile->profile.polling_ms = 10;
+	gpu_profile->profile.polling_ms = KGSL_GOV_POLLING_MS_DEFAULT;
 
 	pwrscale_of_ca_aware(device);
 
@@ -733,6 +751,14 @@ int kgsl_pwrscale_init(struct kgsl_device *device, struct platform_device *pdev,
 	adreno_tz_data.disable_busy_time_burst =
 		of_property_read_bool(pdev->dev.of_node,
 		"qcom,disable-busy-time-burst");
+	#if defined(CONFIG_ARCH_PINEAPPLE) || defined(CONFIG_ARCH_SUN)
+	/*
+	 * Keep burst handling active for faster top-frequency ramp in heavy
+	 * GPU workloads even if device tree opts to disable it.
+	 */
+	adreno_tz_data.disable_busy_time_burst = false;
+	#endif
+
 
 	if (pwrscale->ctxt_aware_enable) {
 		adreno_tz_data.ctxt_aware_enable = pwrscale->ctxt_aware_enable;
