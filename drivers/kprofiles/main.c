@@ -169,8 +169,6 @@ int kp_active_mode(void)
 		kp_trigger_mode_change_event();
 		kp_err("Invalid value passed, falling back to level 0\n");
 	}
-	if (READ_ONCE(kp_mode) == 0)
-		WRITE_ONCE(kp_mode, 2);
 
 	return READ_ONCE(kp_mode);
 }
