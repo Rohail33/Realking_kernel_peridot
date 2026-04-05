@@ -65,6 +65,7 @@ struct qcom_cpufreq_soc_data {
 struct qcom_cpufreq_data {
 	void __iomem *base;
 	void __iomem *pdmem_base;
+	struct device *dev;
 	struct resource *res;
 	const struct qcom_cpufreq_soc_data *soc_data;
 
@@ -88,6 +89,61 @@ struct qcom_cpufreq_data {
 
 static unsigned long cpu_hw_rate, xo_rate;
 static bool icc_scaling_enabled;
+
+static bool qcom_cpufreq_hw_freq_allowed(const u32 *dt_table, int dt_table_len,
+					 unsigned long freq)
+{
+	int i;
+
+	if (!dt_table)
+		return true;
+
+	for (i = 0; i < dt_table_len; i++) {
+		if (dt_table[i] == freq)
+			return true;
+	}
+
+	return false;
+}
+
+static int qcom_cpufreq_hw_read_freq_override(struct qcom_cpufreq_data *data,
+					      u32 **dt_table, int *dt_table_len)
+{
+	struct device_node *np = data->dev->of_node;
+	char prop_name[] = "qcom,cpufreq-table-##";
+	int count, ret;
+	u32 *table;
+
+	*dt_table = NULL;
+	*dt_table_len = 0;
+
+	snprintf(prop_name, sizeof(prop_name), "qcom,cpufreq-table-%d",
+		 data->hw_clk_domain);
+
+	count = of_property_count_u32_elems(np, prop_name);
+	if (count == -EINVAL || count == -ENODATA)
+		return 0;
+	if (count < 0)
+		return count;
+
+	table = kcalloc(count, sizeof(*table), GFP_KERNEL);
+	if (!table)
+		return -ENOMEM;
+
+	ret = of_property_read_u32_array(np, prop_name, table, count);
+	if (ret) {
+		kfree(table);
+		return ret;
+	}
+
+	*dt_table = table;
+	*dt_table_len = count;
+
+	dev_info(data->dev, "using DT cpufreq override for domain %d (%d entries)\n",
+		 data->hw_clk_domain, count);
+
+	return 0;
+}
 
 /*
  * show_hw_clk_domain - the HW clock domain per policy
@@ -291,14 +347,23 @@ static int qcom_cpufreq_hw_read_lut(struct device *cpu_dev,
 	u32 volt, max_cc = 0;
 	struct cpufreq_frequency_table	*table;
 	struct dev_pm_opp *opp;
+	u32 *dt_table = NULL;
 	unsigned long rate;
-	int ret;
+	int ret, dt_table_len = 0;
+	bool freq_allowed, prev_freq_allowed = false;
 	struct qcom_cpufreq_data *drv_data = policy->driver_data;
 	const struct qcom_cpufreq_soc_data *soc_data = drv_data->soc_data;
 
 	table = kcalloc(soc_data->lut_max_entries + 1, sizeof(*table), GFP_KERNEL);
 	if (!table)
 		return -ENOMEM;
+
+	ret = qcom_cpufreq_hw_read_freq_override(drv_data, &dt_table,
+						 &dt_table_len);
+	if (ret) {
+		kfree(table);
+		return ret;
+	}
 
 	ret = dev_pm_opp_of_add_table(cpu_dev);
 	if (!ret) {
@@ -314,6 +379,7 @@ static int qcom_cpufreq_hw_read_lut(struct device *cpu_dev,
 		}
 	} else if (ret != -ENODEV) {
 		dev_err(cpu_dev, "Invalid opp table in device tree\n");
+		kfree(dt_table);
 		kfree(table);
 		return ret;
 	} else {
@@ -340,9 +406,12 @@ static int qcom_cpufreq_hw_read_lut(struct device *cpu_dev,
 		else
 			freq = cpu_hw_rate / 1000;
 
-		if (core_count == LUT_TURBO_IND && soc_data->turbo_ind_support)
+		freq_allowed = qcom_cpufreq_hw_freq_allowed(dt_table, dt_table_len,
+							    freq);
+
+		if (core_count == LUT_TURBO_IND && soc_data->turbo_ind_support) {
 			table[i].frequency = CPUFREQ_ENTRY_INVALID;
-		else if (freq != prev_freq) {
+		} else if (freq != prev_freq && freq_allowed) {
 			if (!qcom_cpufreq_update_opp(cpu_dev, freq, volt)) {
 				table[i].frequency = freq;
 				if (core_count < max_cc)
@@ -367,10 +436,11 @@ static int qcom_cpufreq_hw_read_lut(struct device *cpu_dev,
 			 * as the boost frequency
 			 */
 			if (prev->frequency == CPUFREQ_ENTRY_INVALID) {
-				if (!qcom_cpufreq_update_opp(cpu_dev, prev_freq, volt)) {
+				if (prev_freq_allowed &&
+				    !qcom_cpufreq_update_opp(cpu_dev, prev_freq, volt)) {
 					prev->frequency = prev_freq;
 					prev->flags = CPUFREQ_BOOST_FREQ;
-				} else {
+				} else if (prev_freq_allowed) {
 					dev_warn(cpu_dev, "failed to update OPP for freq=%d\n",
 						 freq);
 				}
@@ -380,10 +450,12 @@ static int qcom_cpufreq_hw_read_lut(struct device *cpu_dev,
 		}
 
 		prev_freq = freq;
+		prev_freq_allowed = freq_allowed;
 	}
 
 	table[i].frequency = CPUFREQ_TABLE_END;
 	policy->freq_table = table;
+	kfree(dt_table);
 
 	for (i = 0; i < soc_data->lut_max_entries && table[i].frequency != CPUFREQ_TABLE_END; i++) {
 		if (table[i].flags == CPUFREQ_BOOST_FREQ)
@@ -771,6 +843,7 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 
 		data->soc_data = of_device_get_match_data(&pdev->dev);
 		data->base = base;
+		data->dev = dev;
 		data->res = res;
 		data->hw_clk_domain = index;
 	}
