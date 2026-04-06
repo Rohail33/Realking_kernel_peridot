@@ -12,6 +12,14 @@ ZIMAGE_DIR="$OUT_DIR/arch/arm64/boot"
 DTB_DTBO_DIR="$ZIMAGE_DIR/dts/vendor/qcom"
 BUILD_START=$(date +"%s")
 
+# staging drivers
+export WLAN_CTRL_NAME=wlan
+export BOARD_PLATFORM=pineapple
+export DEVNAME=qca6750
+export MODNAME=qca_cld3_qca6750
+export DYNAMIC_SINGLE_CHIP=qca6750
+export WLAN_PROFILE=qca6750
+
 # Techpack paths
 export AUDIO_ROOT="$KERNEL_DIR/techpack/audio-kernel"
 export CAMERA_ROOT="$KERNEL_DIR/techpack/camera-kernel"
@@ -186,7 +194,7 @@ if [ $BUILD_HAS_MODULES -gt 0 ]; then
         "smcinvoke_dlkm.ko" "wcd_core_dlkm.ko" "wcd9xxx_dlkm.ko"
         "wcd937x_dlkm.ko" "wcd937x_slave_dlkm.ko" "wcd938x_dlkm.ko"
         "wcd938x_slave_dlkm.ko" "wcd939x_dlkm.ko" "wcd939x_slave_dlkm.ko"
-        "wlan_firmware_service.ko" "xiaomi_touch.ko" "fs19xx_dlkm.ko" "aw882xx_dlkm.ko" "qca_cld3_kiwi_v2.ko"
+        "wlan_firmware_service.ko" "xiaomi_touch.ko" "fs19xx_dlkm.ko" "aw882xx_dlkm.ko" "qca_cld3_qca6750.ko" "qrtr-mhi.ko" "mhi.ko"
         "spf_core_dlkm.ko" "snd_event_dlkm.ko" "gpr_dlkm.ko" "panel_event_notifier.ko" "machine_dlkm.ko" "focaltech_3683g.ko" "fsa4480-i2c.ko" "ucsi_glink.ko" "msm_performance.ko"
         "drm_display_helper.ko"
     )
