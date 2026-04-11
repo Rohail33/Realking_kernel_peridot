@@ -183,13 +183,34 @@ if [ $BUILD_HAS_MODULES -gt 0 ]; then
         mkdir -p "$TEMP_ANY_KERNEL_DIR/_modules"
     fi
 
+    # Check if _vendor_boot exists in template
+    if [ -d "$TEMP_ANY_KERNEL_DIR/_vendor_boot" ]; then
+        echo "Found existing _vendor_boot directory, clearing contents..."
+        rm -f "$TEMP_ANY_KERNEL_DIR/_vendor_boot"/*.ko
+    else
+        echo "Creating _vendor_boot directory..."
+        mkdir -p "$TEMP_ANY_KERNEL_DIR/_vendor_boot"
+    fi
+
+    # List of specific modules to include in vendor_boot ramdisk
+    VENDOR_BOOT_MODULES=(
+        "mi_thermal_interface.ko"
+        "zram.ko"
+        "zsmalloc.ko"
+        "qcom-cpufreq-hw.ko"
+    )
+
+    for module in "${VENDOR_BOOT_MODULES[@]}"; do
+        find "$MODULES_DIR/lib/modules" -type f -name "$module" -exec cp -v {} "$TEMP_ANY_KERNEL_DIR/_vendor_boot/" \;
+    done
+
     # List of specific modules to include
     IMPORTANT_MODULES=(
         "cnss_nl.ko" "cnss_plat_ipc_qmi_svc.ko" "cnss_prealloc.ko" "cnss_utils.ko" "cnss2.ko"
-        "goodix_ts.ko" "icnss2.ko" "ipam.ko" "ipanetm.ko"
+        "goodix_ts.ko" "icnss2.ko" "ipam.ko" "ipanetm.ko" "msm_drm.ko"
         "lpass_cdc_dlkm.ko" "lpass_cdc_rx_macro_dlkm.ko" "lpass_cdc_tx_macro_dlkm.ko"
         "lpass_cdc_va_macro_dlkm.ko" "lpass_cdc_wsa_macro_dlkm.ko" "lpass_cdc_wsa2_macro_dlkm.ko"
-        "msm_drm.ko" "msm_kgsl.ko" "mi_thermal_interface.ko"
+        "msm_kgsl.ko" "mi_thermal_interface.ko"
         "qti_cpufreq_cdev.ko" "qti_devfreq_cdev.ko" "rmnet_offload.ko" "rmnet_shs.ko"
         "smcinvoke_dlkm.ko" "wcd_core_dlkm.ko" "wcd9xxx_dlkm.ko"
         "wcd937x_dlkm.ko" "wcd937x_slave_dlkm.ko" "wcd938x_dlkm.ko"
@@ -201,7 +222,7 @@ if [ $BUILD_HAS_MODULES -gt 0 ]; then
 
     # Find and copy each specified module
     for module in "${IMPORTANT_MODULES[@]}"; do
-        find "$MODULES_DIR/lib/modules" -name "$module" -exec cp -v {} "$TEMP_ANY_KERNEL_DIR/_modules/" \;
+        find "$MODULES_DIR/lib/modules" -type f -name "$module" -exec cp -v {} "$TEMP_ANY_KERNEL_DIR/_modules/" \;
     done
 
     echo "Modules in _modules:"
