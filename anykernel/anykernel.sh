@@ -76,11 +76,9 @@ append_erofs_metadata() {
 		echo "/${partition_name}/lib/modules/${relative_path} ${file_context}" >> ${extract_dir}/config/${partition_name}_file_contexts
 }
 
-VENDOR_MODULES="
+SYSTEM_DLKM_MODULES="
 	zram.ko
 	zsmalloc.ko
-	mi_thermal_interface.ko
-	qcom-cpufreq-hw.ko
 "
 
 copy_special_modules() {
@@ -91,7 +89,7 @@ copy_special_modules() {
 
 	[ -d ${dst_dir} ] || mkdir -p ${dst_dir}
 
-	for module_name in $VENDOR_MODULES; do
+	for module_name in $SYSTEM_DLKM_MODULES; do
 		src_path=""
 		existing_path=$(find "$dst_dir" -type f \( -name "${module_name}" -o -name "*${module_name}" \) | head -n1)
 
@@ -153,12 +151,20 @@ detect_ramdisk_compression() {
 
 patch_vendor_boot_single_modules() {
 	local vendor_boot_dir=${home}/_vendor_boot
+	local shared_modules_dir=${home}/_modules
 	local vendor_boot_block ramdisk_src out_dir replaced_count ramdisk_compression repacked_img patched_ramdisk
 	local module_src module_name target_path
+	local has_vendor_boot_modules=false has_shared_modules=false
 
-	[ -d "$vendor_boot_dir" ] || return 0
-	set -- ${vendor_boot_dir}/*.ko
-	[ -e "$1" ] || return 0
+	if [ -d "$vendor_boot_dir" ]; then
+		set -- ${vendor_boot_dir}/*.ko
+		[ -e "$1" ] && has_vendor_boot_modules=true
+	fi
+	if [ -d "$shared_modules_dir" ]; then
+		set -- ${shared_modules_dir}/*.ko
+		[ -e "$1" ] && has_shared_modules=true
+	fi
+	$has_vendor_boot_modules || $has_shared_modules || return 0
 
 	vendor_boot_block=$(find_named_block ${vendor_boot_partition})
 	[ -n "$vendor_boot_block" ] || abort "! Failed to find ${vendor_boot_partition} partition"
@@ -189,15 +195,31 @@ patch_vendor_boot_single_modules() {
 	) || abort "! Failed to extract vendor ramdisk"
 
 	replaced_count=0
-	for module_src in ${vendor_boot_dir}/*.ko; do
-		[ -f "$module_src" ] || continue
-		module_name=$(basename "$module_src")
-		target_path=$(find ${out_dir} -type f -path '*/lib/modules/*' -name "$module_name" | head -n1)
-		[ -n "$target_path" ] || continue
-		ui_print "- Replacing ${module_name} in vendor_boot"
-		cp -f "$module_src" "$target_path"
-		replaced_count=$((replaced_count + 1))
-	done
+	if $has_vendor_boot_modules; then
+		for module_src in ${vendor_boot_dir}/*.ko; do
+			[ -f "$module_src" ] || continue
+			module_name=$(basename "$module_src")
+			target_path=$(find ${out_dir} -type f -path '*/lib/modules/*' -name "$module_name" | head -n1)
+			[ -n "$target_path" ] || continue
+			ui_print "- Replacing ${module_name} in vendor_boot"
+			cp -f "$module_src" "$target_path"
+			replaced_count=$((replaced_count + 1))
+		done
+	fi
+
+	# Also patch shared modules from _modules when the same module exists in vendor_boot ramdisk.
+	if $has_shared_modules; then
+		for module_src in ${shared_modules_dir}/*.ko; do
+			[ -f "$module_src" ] || continue
+			module_name=$(basename "$module_src")
+			[ -f "${vendor_boot_dir}/${module_name}" ] && continue
+			target_path=$(find ${out_dir} -type f -path '*/lib/modules/*' -name "$module_name" | head -n1)
+			[ -n "$target_path" ] || continue
+			ui_print "- Replacing ${module_name} in vendor_boot (shared module)"
+			cp -f "$module_src" "$target_path"
+			replaced_count=$((replaced_count + 1))
+		done
+	fi
 
 	[ "$replaced_count" -gt 0 ] || {
 		ui_print "- No matching vendor_boot modules found to replace"
@@ -456,6 +478,7 @@ patch_vendor_boot_single_modules
 ########## CUSTOM END ##########
 $vendor_boot_single_module_updated && flash_generic ${vendor_boot_partition}
 flash_generic ${vendor_dlkm_partition}
+[ -f ${home}/system_dlkm.img ] && flash_generic ${system_dlkm_partition}
 
 # Flash kernel to boot
 flash_boot
