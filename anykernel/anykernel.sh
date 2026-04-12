@@ -88,6 +88,7 @@ copy_special_modules() {
 	local processed_modules=""
 
 	system_dlkm_copied_modules=""
+	system_dlkm_failed_modules=""
 
 	[ -d ${dst_dir} ] || mkdir -p ${dst_dir}
 
@@ -106,8 +107,16 @@ copy_special_modules() {
 			break
 		done
 
-		[ -n "$src_path" ] || abort "! Failed to locate ${module_name} for ${system_dlkm_partition} update"
-		[ -s "$src_path" ] || abort "! Source module is empty: $src_path"
+		if [ -z "$src_path" ]; then
+			ui_print "! Skipping ${module_name} in /${system_dlkm_partition}: source not found"
+			system_dlkm_failed_modules="${system_dlkm_failed_modules} ${module_name}(source-missing)"
+			continue
+		fi
+		if [ ! -s "$src_path" ]; then
+			ui_print "! Skipping ${module_name} in /${system_dlkm_partition}: source is empty"
+			system_dlkm_failed_modules="${system_dlkm_failed_modules} ${module_name}(source-empty)"
+			continue
+		fi
 
 		if [ -n "$existing_path" ]; then
 			target_path=$existing_path
@@ -118,11 +127,31 @@ copy_special_modules() {
 		mkdir -p "$(dirname "$target_path")"
 		tmp_path=${target_path}.aknew
 		rm -f "$tmp_path"
-		cp -f "$src_path" "$tmp_path" || abort "! Failed to copy ${module_name} into ${system_dlkm_partition}"
-		[ -s "$tmp_path" ] || abort "! Copied module is empty: $tmp_path"
-		mv -f "$tmp_path" "$target_path" || abort "! Failed to move ${module_name} into place"
-		module_size=$(wc -c < "$target_path")
-		[ "$module_size" -gt 0 ] || abort "! Installed module is empty: $target_path"
+		if ! cp -f "$src_path" "$tmp_path"; then
+			ui_print "! Skipping ${module_name} in /${system_dlkm_partition}: copy failed"
+			system_dlkm_failed_modules="${system_dlkm_failed_modules} ${module_name}(copy-failed)"
+			rm -f "$tmp_path"
+			continue
+		fi
+		if [ ! -s "$tmp_path" ]; then
+			ui_print "! Skipping ${module_name} in /${system_dlkm_partition}: copied file is empty"
+			system_dlkm_failed_modules="${system_dlkm_failed_modules} ${module_name}(copied-empty)"
+			rm -f "$tmp_path"
+			continue
+		fi
+		if ! mv -f "$tmp_path" "$target_path"; then
+			ui_print "! Skipping ${module_name} in /${system_dlkm_partition}: failed to move into place"
+			system_dlkm_failed_modules="${system_dlkm_failed_modules} ${module_name}(move-failed)"
+			rm -f "$tmp_path"
+			continue
+		fi
+		module_size=$(wc -c < "$target_path" 2>/dev/null || echo 0)
+		if [ "$module_size" -le 0 ]; then
+			ui_print "! Skipping ${module_name} in /${system_dlkm_partition}: installed file is empty"
+			system_dlkm_failed_modules="${system_dlkm_failed_modules} ${module_name}(installed-empty)"
+			rm -f "$target_path"
+			continue
+		fi
 		relative_path=${target_path#${dst_dir}/}
 		system_dlkm_copied_modules="${system_dlkm_copied_modules} ${relative_path}"
 	done
@@ -452,11 +481,22 @@ $BOOTMODE || setenforce 0
 		[ -n "$system_dlkm_shared_modules" ] && \
 			ui_print "- Also updating shared modules in /${system_dlkm_partition}: $system_dlkm_shared_modules"
 		copy_special_modules ${extract_system_dlkm_modules_dir} "$system_dlkm_shared_modules"
-		cp -f ${home}/vertmp ${extract_system_dlkm_modules_dir}/vertmp
+		[ -n "$system_dlkm_copied_modules" ] && cp -f ${home}/vertmp ${extract_system_dlkm_modules_dir}/vertmp
+		system_dlkm_valid_modules=""
 		for system_dlkm_module in $system_dlkm_copied_modules; do
-			[ -s "${extract_system_dlkm_modules_dir}/${system_dlkm_module}" ] || \
-				abort "! ${system_dlkm_partition} module copy failed or empty: ${system_dlkm_module}"
+			if [ -s "${extract_system_dlkm_modules_dir}/${system_dlkm_module}" ]; then
+				system_dlkm_valid_modules="${system_dlkm_valid_modules} ${system_dlkm_module}"
+			else
+				ui_print "! Skipping ${system_dlkm_module} in /${system_dlkm_partition}: post-copy check failed"
+				system_dlkm_failed_modules="${system_dlkm_failed_modules} ${system_dlkm_module}(post-check-failed)"
+				rm -f "${extract_system_dlkm_modules_dir}/${system_dlkm_module}"
+			fi
 		done
+		system_dlkm_copied_modules="$system_dlkm_valid_modules"
+		[ -n "$system_dlkm_failed_modules" ] && \
+			ui_print "! Skipped /${system_dlkm_partition} modules:${system_dlkm_failed_modules}"
+		[ -n "$system_dlkm_copied_modules" ] || \
+			ui_print "! No valid modules copied into /${system_dlkm_partition}"
 		sync
 	fi
 
@@ -506,7 +546,8 @@ $BOOTMODE || setenforce 0
 
 	unset vendor_dlkm_is_ext4 vendor_dlkm_free_space extract_vendor_dlkm_dir extract_vendor_dlkm_modules_dir \
 		system_dlkm_is_ext4 extract_system_dlkm_dir extract_system_dlkm_modules_dir search_vendor_dlkm_modules_dir \
-		search_system_dlkm_modules_dir system_dlkm_module system_dlkm_copied_modules system_dlkm_shared_modules \
+		search_system_dlkm_modules_dir system_dlkm_module system_dlkm_copied_modules system_dlkm_failed_modules \
+		system_dlkm_shared_modules system_dlkm_valid_modules \
 		system_dlkm_shared_module module_src module_name system_match vendor_match build_prop backup_package \
 		backup_images blocklist_expr
 #fi
