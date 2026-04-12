@@ -83,24 +83,31 @@ SYSTEM_DLKM_MODULES="
 
 copy_special_modules() {
 	local dst_dir=$1
-	local search_dir src_path module_name existing_path target_path relative_path
+	local additional_modules="$2"
+	local search_dir src_path module_name existing_path target_path relative_path tmp_path module_size
+	local processed_modules=""
 
 	system_dlkm_copied_modules=""
 
 	[ -d ${dst_dir} ] || mkdir -p ${dst_dir}
 
-	for module_name in $SYSTEM_DLKM_MODULES; do
+	for module_name in $SYSTEM_DLKM_MODULES $additional_modules; do
+		case " $processed_modules " in
+			*" ${module_name} "*) continue ;;
+		esac
+		processed_modules="${processed_modules} ${module_name}"
 		src_path=""
 		existing_path=$(find "$dst_dir" -type f \( -name "${module_name}" -o -name "*${module_name}" \) | head -n1)
 
-		for search_dir in ${home}/_system_dlkm $search_system_dlkm_modules_dir $search_vendor_dlkm_modules_dir; do
+		for search_dir in ${home}/_system_dlkm ${home}/_modules $search_system_dlkm_modules_dir $search_vendor_dlkm_modules_dir; do
 			[ -d "$search_dir" ] || continue
 			src_path=$(find "$search_dir" -type f \( -name "${module_name}" -o -name "*${module_name}" \) | head -n1)
 			[ -n "$src_path" ] || continue
 			break
 		done
 
-		[ -n "$src_path" ] || continue
+		[ -n "$src_path" ] || abort "! Failed to locate ${module_name} for ${system_dlkm_partition} update"
+		[ -s "$src_path" ] || abort "! Source module is empty: $src_path"
 
 		if [ -n "$existing_path" ]; then
 			target_path=$existing_path
@@ -109,9 +116,34 @@ copy_special_modules() {
 		fi
 
 		mkdir -p "$(dirname "$target_path")"
-		cp -f "$src_path" "$target_path"
+		tmp_path=${target_path}.aknew
+		rm -f "$tmp_path"
+		cp -f "$src_path" "$tmp_path" || abort "! Failed to copy ${module_name} into ${system_dlkm_partition}"
+		[ -s "$tmp_path" ] || abort "! Copied module is empty: $tmp_path"
+		mv -f "$tmp_path" "$target_path" || abort "! Failed to move ${module_name} into place"
+		module_size=$(wc -c < "$target_path")
+		[ "$module_size" -gt 0 ] || abort "! Installed module is empty: $target_path"
 		relative_path=${target_path#${dst_dir}/}
 		system_dlkm_copied_modules="${system_dlkm_copied_modules} ${relative_path}"
+	done
+}
+
+collect_shared_system_dlkm_modules() {
+	local system_modules_dir=$1
+	local vendor_modules_dir=$2
+	local module_src module_name system_match vendor_match
+
+	system_dlkm_shared_modules=""
+	[ -d ${home}/_modules ] || return 0
+
+	for module_src in ${home}/_modules/*.ko; do
+		[ -f "$module_src" ] || continue
+		module_name=$(basename "$module_src")
+		system_match=$(find "$system_modules_dir" -type f \( -name "${module_name}" -o -name "*${module_name}" \) | head -n1)
+		[ -n "$system_match" ] || continue
+		vendor_match=$(find "$vendor_modules_dir" -type f \( -name "${module_name}" -o -name "*${module_name}" \) | head -n1)
+		[ -n "$vendor_match" ] || continue
+		system_dlkm_shared_modules="${system_dlkm_shared_modules} ${module_name}"
 	done
 }
 
@@ -399,7 +431,8 @@ $BOOTMODE || setenforce 0
 
 		if $system_dlkm_is_ext4; then
 			ui_print "- /${system_dlkm_partition} partition seems to be in ext4 file system."
-			${bin}/e2fsck -y -E unshare_blocks ${home}/system_dlkm.img
+			${bin}/e2fsck -y -E unshare_blocks ${home}/system_dlkm.img || \
+				abort "! Failed to unshare ext4 blocks in ${system_dlkm_partition}.img"
 			mount ${home}/system_dlkm.img $extract_system_dlkm_dir -o rw -t ext4 || \
 				abort "! Failed to mount system_dlkm.img as read-write!"
 			extract_system_dlkm_modules_dir=${extract_system_dlkm_dir}/lib/modules
@@ -415,8 +448,15 @@ $BOOTMODE || setenforce 0
 	sync
 	if $do_system_dlkm_update; then
 		ui_print "- Updating /${system_dlkm_partition} image..."
-		copy_special_modules ${extract_system_dlkm_modules_dir}
+		collect_shared_system_dlkm_modules ${extract_system_dlkm_modules_dir} ${extract_vendor_dlkm_modules_dir}
+		[ -n "$system_dlkm_shared_modules" ] && \
+			ui_print "- Also updating shared modules in /${system_dlkm_partition}: $system_dlkm_shared_modules"
+		copy_special_modules ${extract_system_dlkm_modules_dir} "$system_dlkm_shared_modules"
 		cp -f ${home}/vertmp ${extract_system_dlkm_modules_dir}/vertmp
+		for system_dlkm_module in $system_dlkm_copied_modules; do
+			[ -s "${extract_system_dlkm_modules_dir}/${system_dlkm_module}" ] || \
+				abort "! ${system_dlkm_partition} module copy failed or empty: ${system_dlkm_module}"
+		done
 		sync
 	fi
 
@@ -466,7 +506,8 @@ $BOOTMODE || setenforce 0
 
 	unset vendor_dlkm_is_ext4 vendor_dlkm_free_space extract_vendor_dlkm_dir extract_vendor_dlkm_modules_dir \
 		system_dlkm_is_ext4 extract_system_dlkm_dir extract_system_dlkm_modules_dir search_vendor_dlkm_modules_dir \
-		search_system_dlkm_modules_dir system_dlkm_module system_dlkm_copied_modules build_prop backup_package \
+		search_system_dlkm_modules_dir system_dlkm_module system_dlkm_copied_modules system_dlkm_shared_modules \
+		system_dlkm_shared_module module_src module_name system_match vendor_match build_prop backup_package \
 		backup_images blocklist_expr
 #fi
 
