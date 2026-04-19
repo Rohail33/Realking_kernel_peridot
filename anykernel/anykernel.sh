@@ -64,16 +64,74 @@ mkfs_erofs() {
 
 is_mounted() { mount | grep -q " $1 "; }
 
+resolve_modules_dir() {
+	local extract_dir=$1
+	local partition_name=$2
+	local modules_dir
+
+	for modules_dir in \
+		"${extract_dir}/lib/modules" \
+		"${extract_dir}/${partition_name}/lib/modules"; do
+		[ -d "$modules_dir" ] && {
+			echo "$modules_dir"
+			return 0
+		}
+	done
+
+	modules_dir=$(find "$extract_dir" -type d -path "*/lib/modules" | grep -v "/config/" | head -n1)
+	[ -n "$modules_dir" ] || return 1
+	echo "$modules_dir"
+	return 0
+}
+
+resolve_all_modules_dirs() {
+	local extract_dir=$1
+	local partition_name=$2
+	local modules_dir all_dirs
+
+	all_dirs=""
+	for modules_dir in \
+		"${extract_dir}/lib/modules" \
+		"${extract_dir}/${partition_name}/lib/modules"; do
+		[ -d "$modules_dir" ] || continue
+		case " $all_dirs " in
+			*" ${modules_dir} "*) ;;
+			*) all_dirs="${all_dirs} ${modules_dir}" ;;
+		esac
+	done
+
+	for modules_dir in $(find "$extract_dir" -type d -path "*/lib/modules" | grep -v "/config/"); do
+		case " $all_dirs " in
+			*" ${modules_dir} "*) ;;
+			*) all_dirs="${all_dirs} ${modules_dir}" ;;
+		esac
+	done
+
+	[ -n "$all_dirs" ] || return 1
+	echo "$all_dirs"
+	return 0
+}
+
+resolve_erofs_root_dir() {
+	local extract_dir=$1
+	local partition_name=$2
+	local modules_dir
+
+	modules_dir=$(resolve_modules_dir "$extract_dir" "$partition_name") || return 1
+	echo "$(dirname "$(dirname "$modules_dir")")"
+	return 0
+}
+
 append_erofs_metadata() {
 	local extract_dir=$1
 	local partition_name=$2
 	local relative_path=$3
 	local file_context=$4
 
-	cat ${extract_dir}/config/${partition_name}_fs_config | grep -q "lib/modules/${relative_path}" || \
-		echo "${partition_name}/lib/modules/${relative_path} 0 0 0644" >> ${extract_dir}/config/${partition_name}_fs_config
-	cat ${extract_dir}/config/${partition_name}_file_contexts | grep -q "lib/modules/${relative_path}" || \
-		echo "/${partition_name}/lib/modules/${relative_path} ${file_context}" >> ${extract_dir}/config/${partition_name}_file_contexts
+	cat ${extract_dir}/config/${partition_name}_fs_config | grep -q "^${partition_name}/${relative_path} " || \
+		echo "${partition_name}/${relative_path} 0 0 0644" >> ${extract_dir}/config/${partition_name}_fs_config
+	cat ${extract_dir}/config/${partition_name}_file_contexts | grep -q "^/${partition_name}/${relative_path} " || \
+		echo "/${partition_name}/${relative_path} ${file_context}" >> ${extract_dir}/config/${partition_name}_file_contexts
 }
 
 SYSTEM_DLKM_MODULES="
@@ -84,11 +142,10 @@ SYSTEM_DLKM_MODULES="
 copy_special_modules() {
 	local dst_dir=$1
 	local additional_modules="$2"
+	local allow_create=$3
+	local partition_root_dir=$4
 	local search_dir src_path module_name existing_path target_path relative_path tmp_path module_size
 	local processed_modules=""
-
-	system_dlkm_copied_modules=""
-	system_dlkm_failed_modules=""
 
 	[ -d ${dst_dir} ] || mkdir -p ${dst_dir}
 
@@ -121,6 +178,7 @@ copy_special_modules() {
 		if [ -n "$existing_path" ]; then
 			target_path=$existing_path
 		else
+			[ "$allow_create" = "true" ] || continue
 			target_path=${dst_dir}/${module_name}
 		fi
 
@@ -152,7 +210,7 @@ copy_special_modules() {
 			rm -f "$target_path"
 			continue
 		fi
-		relative_path=${target_path#${dst_dir}/}
+		relative_path=${target_path#${partition_root_dir}/}
 		system_dlkm_copied_modules="${system_dlkm_copied_modules} ${relative_path}"
 	done
 }
@@ -412,6 +470,7 @@ $BOOTMODE || setenforce 0
 	extract_vendor_dlkm_dir=${home}/_extract_vendor_dlkm
 	mkdir -p $extract_vendor_dlkm_dir
 	vendor_dlkm_is_ext4=false
+	vendor_dlkm_erofs_root_dir=""
 	extract_erofs ${home}/vendor_dlkm.img $extract_vendor_dlkm_dir || vendor_dlkm_is_ext4=true
 	sync
 
@@ -444,10 +503,12 @@ $BOOTMODE || setenforce 0
 		ui_print "- Trying to mount vendor_dlkm image as read-write..."
 		mount ${home}/vendor_dlkm.img $extract_vendor_dlkm_dir -o rw -t ext4 || \
 			abort "! Failed to mount vendor_dlkm.img as read-write!"
-
-		extract_vendor_dlkm_modules_dir=${extract_vendor_dlkm_dir}/lib/modules
-	else
-		extract_vendor_dlkm_modules_dir=${extract_vendor_dlkm_dir}/vendor_dlkm/lib/modules
+	fi
+	extract_vendor_dlkm_modules_dir=$(resolve_modules_dir "$extract_vendor_dlkm_dir" "$vendor_dlkm_partition") || \
+		abort "! Failed to locate ${vendor_dlkm_partition} modules directory"
+	if ! $vendor_dlkm_is_ext4; then
+		vendor_dlkm_erofs_root_dir=$(resolve_erofs_root_dir "$extract_vendor_dlkm_dir" "$vendor_dlkm_partition") || \
+			abort "! Failed to locate ${vendor_dlkm_partition} erofs root directory"
 	fi
 	search_vendor_dlkm_modules_dir=${extract_vendor_dlkm_modules_dir}
 	if $do_system_dlkm_update; then
@@ -455,6 +516,8 @@ $BOOTMODE || setenforce 0
 		extract_system_dlkm_dir=${home}/_extract_system_dlkm
 		mkdir -p $extract_system_dlkm_dir
 		system_dlkm_is_ext4=false
+		system_dlkm_erofs_root_dir=""
+		system_dlkm_partition_root_dir=""
 		extract_erofs ${home}/system_dlkm.img $extract_system_dlkm_dir || system_dlkm_is_ext4=true
 		sync
 
@@ -464,11 +527,17 @@ $BOOTMODE || setenforce 0
 				abort "! Failed to unshare ext4 blocks in ${system_dlkm_partition}.img"
 			mount ${home}/system_dlkm.img $extract_system_dlkm_dir -o rw -t ext4 || \
 				abort "! Failed to mount system_dlkm.img as read-write!"
-			extract_system_dlkm_modules_dir=${extract_system_dlkm_dir}/lib/modules
-		else
-			extract_system_dlkm_modules_dir=${extract_system_dlkm_dir}/${system_dlkm_partition}/lib/modules
+			system_dlkm_partition_root_dir=${extract_system_dlkm_dir}
 		fi
-		search_system_dlkm_modules_dir=${extract_system_dlkm_modules_dir}
+		extract_system_dlkm_modules_dirs=$(resolve_all_modules_dirs "$extract_system_dlkm_dir" "$system_dlkm_partition") || \
+			abort "! Failed to locate ${system_dlkm_partition} modules directory"
+		if ! $system_dlkm_is_ext4; then
+			system_dlkm_erofs_root_dir=$(resolve_erofs_root_dir "$extract_system_dlkm_dir" "$system_dlkm_partition") || \
+				abort "! Failed to locate ${system_dlkm_partition} erofs root directory"
+			system_dlkm_partition_root_dir=${system_dlkm_erofs_root_dir}
+		fi
+		extract_system_dlkm_modules_dir=$(echo "$extract_system_dlkm_modules_dirs" | awk '{print $1}')
+		search_system_dlkm_modules_dir=${extract_system_dlkm_modules_dirs}
 	fi
 
 	ui_print "- Updating /vendor_dlkm image..."
@@ -480,16 +549,24 @@ $BOOTMODE || setenforce 0
 		collect_shared_system_dlkm_modules ${extract_system_dlkm_modules_dir} ${extract_vendor_dlkm_modules_dir}
 		[ -n "$system_dlkm_shared_modules" ] && \
 			ui_print "- Also updating shared modules in /${system_dlkm_partition}: $system_dlkm_shared_modules"
-		copy_special_modules ${extract_system_dlkm_modules_dir} "$system_dlkm_shared_modules"
+		system_dlkm_copied_modules=""
+		system_dlkm_failed_modules=""
+		for system_dlkm_target_dir in $extract_system_dlkm_modules_dirs; do
+			if [ "$system_dlkm_target_dir" = "$extract_system_dlkm_modules_dir" ]; then
+				copy_special_modules "$system_dlkm_target_dir" "$system_dlkm_shared_modules" "true" "$system_dlkm_partition_root_dir"
+			else
+				copy_special_modules "$system_dlkm_target_dir" "$system_dlkm_shared_modules" "false" "$system_dlkm_partition_root_dir"
+			fi
+		done
 		[ -n "$system_dlkm_copied_modules" ] && cp -f ${home}/vertmp ${extract_system_dlkm_modules_dir}/vertmp
 		system_dlkm_valid_modules=""
 		for system_dlkm_module in $system_dlkm_copied_modules; do
-			if [ -s "${extract_system_dlkm_modules_dir}/${system_dlkm_module}" ]; then
+			if [ -s "${system_dlkm_partition_root_dir}/${system_dlkm_module}" ]; then
 				system_dlkm_valid_modules="${system_dlkm_valid_modules} ${system_dlkm_module}"
 			else
 				ui_print "! Skipping ${system_dlkm_module} in /${system_dlkm_partition}: post-copy check failed"
 				system_dlkm_failed_modules="${system_dlkm_failed_modules} ${system_dlkm_module}(post-check-failed)"
-				rm -f "${extract_system_dlkm_modules_dir}/${system_dlkm_module}"
+				rm -f "${system_dlkm_partition_root_dir}/${system_dlkm_module}"
 			fi
 		done
 		system_dlkm_copied_modules="$system_dlkm_valid_modules"
@@ -511,7 +588,7 @@ $BOOTMODE || setenforce 0
 			echo '/vendor_dlkm/lib/modules/vertmp u:object_r:vendor_file:s0' >> ${extract_vendor_dlkm_dir}/config/vendor_dlkm_file_contexts
 		ui_print "- Repacking /vendor_dlkm image..."
 		rm -f ${home}/vendor_dlkm.img
-		mkfs_erofs ${extract_vendor_dlkm_dir}/vendor_dlkm ${home}/vendor_dlkm.img || \
+		mkfs_erofs ${vendor_dlkm_erofs_root_dir} ${home}/vendor_dlkm.img || \
 			abort "! Failed to repack the vendor_dlkm image!"
 		rm -rf ${extract_vendor_dlkm_dir}
 	fi
@@ -524,29 +601,31 @@ $BOOTMODE || setenforce 0
 				chcon u:object_r:system_file:s0 "$system_dlkm_module"
 			done
 			for system_dlkm_module in $system_dlkm_copied_modules; do
-				system_dlkm_module=${extract_system_dlkm_modules_dir}/${system_dlkm_module}
+				system_dlkm_module=${system_dlkm_partition_root_dir}/${system_dlkm_module}
 				[ -f "$system_dlkm_module" ] || continue
 				set_perm 0 0 0644 "$system_dlkm_module"
 				chcon u:object_r:system_file:s0 "$system_dlkm_module"
 			done
 			umount $extract_system_dlkm_dir
 		else
-			append_erofs_metadata ${extract_system_dlkm_dir} ${system_dlkm_partition} vertmp u:object_r:system_file:s0
+			append_erofs_metadata ${extract_system_dlkm_dir} ${system_dlkm_partition} lib/modules/vertmp u:object_r:system_file:s0
 			for system_dlkm_module in $system_dlkm_copied_modules; do
-				[ -f ${extract_system_dlkm_modules_dir}/${system_dlkm_module} ] || continue
+				[ -f ${system_dlkm_partition_root_dir}/${system_dlkm_module} ] || continue
 				append_erofs_metadata ${extract_system_dlkm_dir} ${system_dlkm_partition} ${system_dlkm_module} u:object_r:system_file:s0
 			done
 			ui_print "- Repacking /${system_dlkm_partition} image..."
 			rm -f ${home}/system_dlkm.img
-			mkfs_erofs ${extract_system_dlkm_dir}/${system_dlkm_partition} ${home}/system_dlkm.img || \
+			mkfs_erofs ${system_dlkm_erofs_root_dir} ${home}/system_dlkm.img || \
 				abort "! Failed to repack the system_dlkm image!"
 			rm -rf ${extract_system_dlkm_dir}
 		fi
 	fi
 
 	unset vendor_dlkm_is_ext4 vendor_dlkm_free_space extract_vendor_dlkm_dir extract_vendor_dlkm_modules_dir \
-		system_dlkm_is_ext4 extract_system_dlkm_dir extract_system_dlkm_modules_dir search_vendor_dlkm_modules_dir \
-		search_system_dlkm_modules_dir system_dlkm_module system_dlkm_copied_modules system_dlkm_failed_modules \
+		vendor_dlkm_erofs_root_dir system_dlkm_is_ext4 system_dlkm_erofs_root_dir system_dlkm_partition_root_dir \
+		extract_system_dlkm_dir extract_system_dlkm_modules_dir extract_system_dlkm_modules_dirs \
+		system_dlkm_target_dir search_vendor_dlkm_modules_dir search_system_dlkm_modules_dir \
+		system_dlkm_module system_dlkm_copied_modules system_dlkm_failed_modules \
 		system_dlkm_shared_modules system_dlkm_valid_modules \
 		system_dlkm_shared_module module_src module_name system_match vendor_match build_prop backup_package \
 		backup_images blocklist_expr
