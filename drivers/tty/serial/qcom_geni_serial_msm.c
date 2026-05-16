@@ -29,7 +29,7 @@
 #include <dt-bindings/interconnect/qcom,icc.h>
 
 #define CREATE_TRACE_POINTS
-#include <trace/events/qup_buses_trace.h>
+#include <trace/events/qup_serial_trace.h>
 
 void serial_trace_log(struct device *dev, const char *fmt, ...)
 {
@@ -41,7 +41,7 @@ void serial_trace_log(struct device *dev, const char *fmt, ...)
 
 	va_start(args, fmt);
 	vaf.va = &args;
-	trace_buses_log_info(dev_name(dev), &vaf);
+	trace_serial_log_info(dev_name(dev), &vaf);
 	va_end(args);
 }
 
@@ -1335,6 +1335,7 @@ static int geni_serial_set_level(struct uart_port *uport, unsigned long baud)
 	struct device *perf_dev = port->pd_list->pd_devs[DOMAIN_IDX_PERF];
 	int ret;
 
+	serial_trace_log(uport->dev, "Calling Opp set level for %lu baud rate\n", baud);
 	ret = geni_serial_pm_opp_set_level(perf_dev, baud);
 	if (ret)
 		dev_err(uport->dev, "performance operation(%lu) failed with err=%d\n",
@@ -1664,6 +1665,7 @@ int geni_serial_pm_domain_attach_list(struct device *dev,
 							data->pd_names[i]);
 		if (IS_ERR_OR_NULL(pd_dev)) {
 			ret = pd_dev ? PTR_ERR(pd_dev) : -ENODEV;
+			dev_err(dev, "Failed to attach domain: %d\n", ret);
 			goto err_attach;
 		}
 
@@ -1673,6 +1675,7 @@ int geni_serial_pm_domain_attach_list(struct device *dev,
 			link = device_link_add(dev, pd_dev, link_flags);
 			if (!link) {
 				ret = -ENODEV;
+				dev_err(dev, "Failed to link device: %d\n", ret);
 				goto err_link;
 			}
 

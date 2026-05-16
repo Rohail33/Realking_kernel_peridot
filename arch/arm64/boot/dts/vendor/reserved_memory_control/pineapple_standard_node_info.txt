@@ -1,4 +1,3 @@
-<<<<<<< HEAD   (66025d [N16T] delete other project information)
 <PINEAPPLE_PLATFORM>
 	<pineapple>
 		< node_name=gunyah_hyp_region@80000000 size=<0x00 0xe00000> >
@@ -416,5 +415,3 @@
 	</aurora-sm8650-overlay>
 
 </PINEAPPLE_PLATFORM>
-=======
->>>>>>> CHANGE (7fe08f N1:kernel: revert reserved memory control for oss (1/2))

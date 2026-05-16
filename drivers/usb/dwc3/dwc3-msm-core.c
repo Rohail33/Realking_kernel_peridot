@@ -74,7 +74,6 @@
 #define DWC3_GUSB3PIPECTL_DISRXDETU3	BIT(22)
 #define DWC3_GUCTL_SPRSCTRLTRANSEN	BIT(17)
 
-#define DWC3_LLUCTL	0xd024
 /* Force Gen1 speed on Gen2 link */
 #define DWC3_LLUCTL_FORCE_GEN1	BIT(10)
 
@@ -3780,7 +3779,9 @@ static void dwc3_dis_sleep_mode(struct dwc3_msm *mdwc)
 static void dwc3_force_gen1(struct dwc3_msm *mdwc)
 {
 	if (mdwc->force_gen1 && (mdwc->ip == DWC31_IP))
-		dwc3_msm_write_reg_field(mdwc->base, DWC3_LLUCTL, DWC3_LLUCTL_FORCE_GEN1, 1);
+		dwc3_msm_write_reg_field(mdwc->base,
+					 USB3_PRI_LINK_REGS_LLUCTL(0),
+					 FORCE_GEN1_MASK, 1);
 }
 
 static int dwc3_msm_power_collapse_por(struct dwc3_msm *mdwc)
@@ -6747,7 +6748,7 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err;
 
-	if (dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64))) {
+	if (dma_set_mask_and_coherent(dev, U64_MAX)) {
 		dev_err(&pdev->dev, "setting DMA mask to 64 failed.\n");
 		if (dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32))) {
 			dev_err(&pdev->dev, "setting DMA mask to 32 failed.\n");

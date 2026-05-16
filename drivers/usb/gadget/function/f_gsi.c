@@ -3485,6 +3485,8 @@ static int gsi_bind(struct usb_configuration *c, struct usb_function *f)
 	if (status)
 		goto dereg_rndis;
 
+	return 0;
+
 dereg_rndis:
 	rndis_deregister(gsi->params);
 fail:
@@ -3578,7 +3580,7 @@ static void gsi_unbind(struct usb_configuration *c, struct usb_function *f)
 		usb_ep_free_request(gsi->c_port.notify, gsi->c_port.notify_req);
 	}
 
-	if (gsi->prot_id == IPA_USB_NCM) {
+	if ((gsi->c_port.notify) && (gsi->prot_id == IPA_USB_NCM)) {
 		kfree(gsi->ncm_notify_req->buf);
 		usb_ep_free_request(gsi->c_port.notify, gsi->ncm_notify_req);
 	}
