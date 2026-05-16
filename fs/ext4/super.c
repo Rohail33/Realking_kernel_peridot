@@ -1194,14 +1194,79 @@ static inline void ext4_quota_off_umount(struct super_block *sb)
 }
 #endif
 
+static int ext4_percpu_param_init(struct ext4_sb_info *sbi)
+{
+	ext4_fsblk_t block;
+	int err;
+
+	block = ext4_count_free_clusters(sbi->s_sb);
+	ext4_free_blocks_count_set(sbi->s_es, EXT4_C2B(sbi, block));
+	err = percpu_counter_init(&sbi->s_freeclusters_counter, block,
+				  GFP_KERNEL);
+	if (!err) {
+		unsigned long freei = ext4_count_free_inodes(sbi->s_sb);
+		sbi->s_es->s_free_inodes_count = cpu_to_le32(freei);
+		err = percpu_counter_init(&sbi->s_freeinodes_counter, freei,
+					  GFP_KERNEL);
+	}
+	if (!err)
+		err = percpu_counter_init(&sbi->s_dirs_counter,
+					  ext4_count_dirs(sbi->s_sb), GFP_KERNEL);
+	if (!err)
+		err = percpu_counter_init(&sbi->s_dirtyclusters_counter, 0,
+					  GFP_KERNEL);
+	if (!err)
+		err = percpu_counter_init(&sbi->s_sra_exceeded_retry_limit, 0,
+					  GFP_KERNEL);
+	if (!err)
+		err = percpu_init_rwsem(&sbi->s_writepages_rwsem);
+
+	if (err)
+		ext4_msg(sbi->s_sb, KERN_ERR, "insufficient memory");
+
+	return err;
+}
+
+static void ext4_percpu_param_destroy(struct ext4_sb_info *sbi)
+{
+	percpu_counter_destroy(&sbi->s_freeclusters_counter);
+	percpu_counter_destroy(&sbi->s_freeinodes_counter);
+	percpu_counter_destroy(&sbi->s_dirs_counter);
+	percpu_counter_destroy(&sbi->s_dirtyclusters_counter);
+	percpu_counter_destroy(&sbi->s_sra_exceeded_retry_limit);
+	percpu_free_rwsem(&sbi->s_writepages_rwsem);
+}
+
+static void ext4_group_desc_free(struct ext4_sb_info *sbi)
+{
+	struct buffer_head **group_desc;
+	int i;
+
+	group_desc = rcu_access_pointer(sbi->s_group_desc);
+	for (i = 0; i < sbi->s_gdb_count; i++)
+		brelse(group_desc[i]);
+	kvfree(group_desc);
+}
+
+static void ext4_flex_groups_free(struct ext4_sb_info *sbi)
+{
+	struct flex_groups **flex_groups;
+	int i;
+
+	flex_groups = rcu_access_pointer(sbi->s_flex_groups);
+	if (flex_groups) {
+		for (i = 0; i < sbi->s_flex_groups_allocated; i++)
+			kvfree(flex_groups[i]);
+		kvfree(flex_groups);
+	}
+}
+
 static void ext4_put_super(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_super_block *es = sbi->s_es;
-	struct buffer_head **group_desc;
-	struct flex_groups **flex_groups;
 	int aborted = 0;
-	int i, err;
+	int err;
 
 	/*
 	 * Unregister sysfs before destroying jbd2 journal.
@@ -1248,26 +1313,11 @@ static void ext4_put_super(struct super_block *sb)
 	if (!sb_rdonly(sb))
 		ext4_commit_super(sb);
 
-	rcu_read_lock();
-	group_desc = rcu_dereference(sbi->s_group_desc);
-	for (i = 0; i < sbi->s_gdb_count; i++)
-		brelse(group_desc[i]);
-	kvfree(group_desc);
-	flex_groups = rcu_dereference(sbi->s_flex_groups);
-	if (flex_groups) {
-		for (i = 0; i < sbi->s_flex_groups_allocated; i++)
-			kvfree(flex_groups[i]);
-		kvfree(flex_groups);
-	}
-	rcu_read_unlock();
-	percpu_counter_destroy(&sbi->s_freeclusters_counter);
-	percpu_counter_destroy(&sbi->s_freeinodes_counter);
-	percpu_counter_destroy(&sbi->s_dirs_counter);
-	percpu_counter_destroy(&sbi->s_dirtyclusters_counter);
-	percpu_counter_destroy(&sbi->s_sra_exceeded_retry_limit);
-	percpu_free_rwsem(&sbi->s_writepages_rwsem);
+	ext4_group_desc_free(sbi);
+	ext4_flex_groups_free(sbi);
+	ext4_percpu_param_destroy(sbi);
 #ifdef CONFIG_QUOTA
-	for (i = 0; i < EXT4_MAXQUOTAS; i++)
+	for (int i = 0; i < EXT4_MAXQUOTAS; i++)
 		kfree(get_qf_name(sb, sbi, i));
 #endif
 
@@ -1328,6 +1378,7 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 
 	inode_set_iversion(&ei->vfs_inode, 1);
 	ei->i_flags = 0;
+	ext4_clear_state_flags(ei);	/* Only relevant on 32-bit archs */
 	spin_lock_init(&ei->i_raw_lock);
 	INIT_LIST_HEAD(&ei->i_prealloc_list);
 	atomic_set(&ei->i_prealloc_active, 0);
@@ -2416,7 +2467,7 @@ static int parse_apply_sb_mount_options(struct super_block *sb,
 					struct ext4_fs_context *m_ctx)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	char s_mount_opts[65];
+	char s_mount_opts[64];
 	struct ext4_fs_context *s_ctx = NULL;
 	struct fs_context *fc = NULL;
 	int ret = -ENOMEM;
@@ -2424,7 +2475,8 @@ static int parse_apply_sb_mount_options(struct super_block *sb,
 	if (!sbi->s_es->s_mount_opts[0])
 		return 0;
 
-	strscpy_pad(s_mount_opts, sbi->s_es->s_mount_opts, sizeof(s_mount_opts));
+	if (strscpy_pad(s_mount_opts, sbi->s_es->s_mount_opts, sizeof(s_mount_opts)) < 0)
+		return -E2BIG;
 
 	fc = kzalloc(sizeof(struct fs_context), GFP_KERNEL);
 	if (!fc)
@@ -3563,6 +3615,13 @@ int ext4_feature_set_ok(struct super_block *sb, int readonly)
 		ext4_msg(sb, KERN_ERR,
 			 "Can't support bigalloc feature without "
 			 "extents feature\n");
+		return 0;
+	}
+	if (ext4_has_feature_bigalloc(sb) &&
+	    le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block)) {
+		ext4_msg(sb, KERN_WARNING,
+			 "bad geometry: bigalloc file system with non-zero "
+			 "first_data_block\n");
 		return 0;
 	}
 
@@ -4715,19 +4774,6 @@ static int ext4_geometry_check(struct super_block *sb,
 	return 0;
 }
 
-static void ext4_group_desc_free(struct ext4_sb_info *sbi)
-{
-	struct buffer_head **group_desc;
-	int i;
-
-	rcu_read_lock();
-	group_desc = rcu_dereference(sbi->s_group_desc);
-	for (i = 0; i < sbi->s_gdb_count; i++)
-		brelse(group_desc[i]);
-	kvfree(group_desc);
-	rcu_read_unlock();
-}
-
 static int ext4_group_desc_init(struct super_block *sb,
 				struct ext4_super_block *es,
 				ext4_fsblk_t logical_sb_block,
@@ -5025,16 +5071,54 @@ out:
 	return ret;
 }
 
+static int ext4_hash_info_init(struct super_block *sb)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	struct ext4_super_block *es = sbi->s_es;
+	unsigned int i;
+
+	sbi->s_def_hash_version = es->s_def_hash_version;
+
+	if (sbi->s_def_hash_version > DX_HASH_LAST) {
+		ext4_msg(sb, KERN_ERR,
+			 "Invalid default hash set in the superblock");
+		return -EINVAL;
+	} else if (sbi->s_def_hash_version == DX_HASH_SIPHASH) {
+		ext4_msg(sb, KERN_ERR,
+			 "SIPHASH is not a valid default hash value");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < 4; i++)
+		sbi->s_hash_seed[i] = le32_to_cpu(es->s_hash_seed[i]);
+
+	if (ext4_has_feature_dir_index(sb)) {
+		i = le32_to_cpu(es->s_flags);
+		if (i & EXT2_FLAGS_UNSIGNED_HASH)
+			sbi->s_hash_unsigned = 3;
+		else if ((i & EXT2_FLAGS_SIGNED_HASH) == 0) {
+#ifdef __CHAR_UNSIGNED__
+			if (!sb_rdonly(sb))
+				es->s_flags |=
+					cpu_to_le32(EXT2_FLAGS_UNSIGNED_HASH);
+			sbi->s_hash_unsigned = 3;
+#else
+			if (!sb_rdonly(sb))
+				es->s_flags |=
+					cpu_to_le32(EXT2_FLAGS_SIGNED_HASH);
+#endif
+		}
+	}
+	return 0;
+}
+
 static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 {
 	struct ext4_super_block *es = NULL;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	struct flex_groups **flex_groups;
-	ext4_fsblk_t block;
 	ext4_fsblk_t logical_sb_block;
 	struct inode *root;
 	int ret = -ENOMEM;
-	unsigned int i;
 	int needs_recovery, has_huge_files;
 	int err = 0;
 	ext4_group_t first_not_zeroed;
@@ -5177,26 +5261,9 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	sbi->s_addr_per_block_bits = ilog2(EXT4_ADDR_PER_BLOCK(sb));
 	sbi->s_desc_per_block_bits = ilog2(EXT4_DESC_PER_BLOCK(sb));
 
-	for (i = 0; i < 4; i++)
-		sbi->s_hash_seed[i] = le32_to_cpu(es->s_hash_seed[i]);
-	sbi->s_def_hash_version = es->s_def_hash_version;
-	if (ext4_has_feature_dir_index(sb)) {
-		i = le32_to_cpu(es->s_flags);
-		if (i & EXT2_FLAGS_UNSIGNED_HASH)
-			sbi->s_hash_unsigned = 3;
-		else if ((i & EXT2_FLAGS_SIGNED_HASH) == 0) {
-#ifdef __CHAR_UNSIGNED__
-			if (!sb_rdonly(sb))
-				es->s_flags |=
-					cpu_to_le32(EXT2_FLAGS_UNSIGNED_HASH);
-			sbi->s_hash_unsigned = 3;
-#else
-			if (!sb_rdonly(sb))
-				es->s_flags |=
-					cpu_to_le32(EXT2_FLAGS_SIGNED_HASH);
-#endif
-		}
-	}
+	err = ext4_hash_info_init(sb);
+	if (err)
+		goto failed_mount;
 
 	if (ext4_handle_clustersize(sb))
 		goto failed_mount;
@@ -5222,6 +5289,7 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 
 	timer_setup(&sbi->s_err_report, print_daily_error_info, 0);
 	spin_lock_init(&sbi->s_error_lock);
+	mutex_init(&sbi->s_error_notify_mutex);
 	INIT_WORK(&sbi->s_error_work, flush_stashed_error_work);
 
 	/* Register extent status tree shrinker */
@@ -5449,33 +5517,9 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 		sbi->s_journal->j_commit_callback =
 			ext4_journal_commit_callback;
 
-	block = ext4_count_free_clusters(sb);
-	ext4_free_blocks_count_set(sbi->s_es,
-				   EXT4_C2B(sbi, block));
-	err = percpu_counter_init(&sbi->s_freeclusters_counter, block,
-				  GFP_KERNEL);
-	if (!err) {
-		unsigned long freei = ext4_count_free_inodes(sb);
-		sbi->s_es->s_free_inodes_count = cpu_to_le32(freei);
-		err = percpu_counter_init(&sbi->s_freeinodes_counter, freei,
-					  GFP_KERNEL);
-	}
-	if (!err)
-		err = percpu_counter_init(&sbi->s_dirs_counter,
-					  ext4_count_dirs(sb), GFP_KERNEL);
-	if (!err)
-		err = percpu_counter_init(&sbi->s_dirtyclusters_counter, 0,
-					  GFP_KERNEL);
-	if (!err)
-		err = percpu_counter_init(&sbi->s_sra_exceeded_retry_limit, 0,
-					  GFP_KERNEL);
-	if (!err)
-		err = percpu_init_rwsem(&sbi->s_writepages_rwsem);
-
-	if (err) {
-		ext4_msg(sb, KERN_ERR, "insufficient memory");
+	err = ext4_percpu_param_init(sbi);
+	if (err)
 		goto failed_mount6;
-	}
 
 	if (ext4_has_feature_flex_bg(sb))
 		if (!ext4_fill_flex_info(sb)) {
@@ -5558,20 +5602,8 @@ failed_mount7:
 	ext4_unregister_li_request(sb);
 failed_mount6:
 	ext4_mb_release(sb);
-	rcu_read_lock();
-	flex_groups = rcu_dereference(sbi->s_flex_groups);
-	if (flex_groups) {
-		for (i = 0; i < sbi->s_flex_groups_allocated; i++)
-			kvfree(flex_groups[i]);
-		kvfree(flex_groups);
-	}
-	rcu_read_unlock();
-	percpu_counter_destroy(&sbi->s_freeclusters_counter);
-	percpu_counter_destroy(&sbi->s_freeinodes_counter);
-	percpu_counter_destroy(&sbi->s_dirs_counter);
-	percpu_counter_destroy(&sbi->s_dirtyclusters_counter);
-	percpu_counter_destroy(&sbi->s_sra_exceeded_retry_limit);
-	percpu_free_rwsem(&sbi->s_writepages_rwsem);
+	ext4_flex_groups_free(sbi);
+	ext4_percpu_param_destroy(sbi);
 failed_mount5:
 	ext4_ext_release(sb);
 	ext4_release_system_zone(sb);
@@ -5612,7 +5644,7 @@ failed_mount:
 #endif
 
 #ifdef CONFIG_QUOTA
-	for (i = 0; i < EXT4_MAXQUOTAS; i++)
+	for (unsigned int i = 0; i < EXT4_MAXQUOTAS; i++)
 		kfree(get_qf_name(sb, sbi, i));
 #endif
 	fscrypt_free_dummy_policy(&sbi->s_dummy_enc_policy);

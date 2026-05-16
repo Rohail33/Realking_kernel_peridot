@@ -65,14 +65,17 @@ enum trace_type {
 #undef __field_fn
 #define __field_fn(type, item)		type	item;
 
+#undef __field_packed
+#define __field_packed(type, item)	type	item;
+
 #undef __field_struct
 #define __field_struct(type, item)	__field(type, item)
 
 #undef __field_desc
 #define __field_desc(type, container, item)
 
-#undef __field_packed
-#define __field_packed(type, container, item)
+#undef __field_desc_packed
+#define __field_desc_packed(type, container, item)
 
 #undef __array
 #define __array(type, item, size)	type	item[size];
@@ -1635,6 +1638,9 @@ extern void event_trigger_unregister(struct event_command *cmd_ops,
 				     struct trace_event_file *file,
 				     char *glob,
 				     struct event_trigger_data *trigger_data);
+
+extern void event_file_get(struct trace_event_file *file);
+extern void event_file_put(struct trace_event_file *file);
 
 /**
  * struct event_trigger_ops - callbacks for trace event triggers

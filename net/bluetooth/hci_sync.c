@@ -836,11 +836,17 @@ bool hci_cmd_sync_dequeue_once(struct hci_dev *hdev,
 {
 	struct hci_cmd_sync_work_entry *entry;
 
-	entry = hci_cmd_sync_lookup_entry(hdev, func, data, destroy);
-	if (!entry)
-		return false;
+	mutex_lock(&hdev->cmd_sync_work_lock);
 
-	hci_cmd_sync_cancel_entry(hdev, entry);
+	entry = _hci_cmd_sync_lookup_entry(hdev, func, data, destroy);
+	if (!entry) {
+		mutex_unlock(&hdev->cmd_sync_work_lock);
+		return false;
+	}
+
+	_hci_cmd_sync_cancel_entry(hdev, entry, -ECANCELED);
+
+	mutex_unlock(&hdev->cmd_sync_work_lock);
 
 	return true;
 }
@@ -1240,7 +1246,8 @@ static int hci_set_ext_adv_data_sync(struct hci_dev *hdev, u8 instance)
 			return 0;
 	}
 
-	len = eir_create_adv_data(hdev, instance, pdu.data);
+	len = eir_create_adv_data(hdev, instance, pdu.data,
+				  HCI_MAX_EXT_AD_LENGTH);
 
 	pdu.cp.length = len;
 	pdu.cp.handle = instance;
@@ -1271,7 +1278,7 @@ static int hci_set_adv_data_sync(struct hci_dev *hdev, u8 instance)
 
 	memset(&cp, 0, sizeof(cp));
 
-	len = eir_create_adv_data(hdev, instance, cp.data);
+	len = eir_create_adv_data(hdev, instance, cp.data, sizeof(cp.data));
 
 	/* There's nothing to do if the data hasn't changed */
 	if (hdev->adv_data_len == len &&
@@ -6429,8 +6436,8 @@ int hci_le_create_conn_sync(struct hci_dev *hdev, struct hci_conn *conn)
 	 * state.
 	 */
 	if (hci_dev_test_flag(hdev, HCI_LE_SCAN)) {
-		hci_scan_disable_sync(hdev);
 		hci_dev_set_flag(hdev, HCI_LE_SCAN_INTERRUPTED);
+		hci_scan_disable_sync(hdev);
 	}
 
 	/* Update random address, but set require_privacy to false so

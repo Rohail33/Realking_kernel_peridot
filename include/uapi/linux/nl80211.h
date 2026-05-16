@@ -1318,16 +1318,6 @@
  *	The number of peers that HW timestamping can be enabled for concurrently
  *	is indicated by %NL80211_ATTR_MAX_HW_TIMESTAMP_PEERS.
  *
- * @NL80211_CMD_LINKS_REMOVED: Notify userspace about the removal of STA MLD
- *     setup links due to AP MLD removing the corresponding affiliated APs with
- *     Multi-Link reconfiguration. %NL80211_ATTR_MLO_LINKS is used to provide
- *     information about the removed STA MLD setup links.
- *
- * @NL80211_CMD_SET_TID_TO_LINK_MAPPING: Set the TID to Link Mapping for a
- *	non-AP MLD station. The %NL80211_ATTR_MLO_TTLM_DLINK and
- *	%NL80211_ATTR_MLO_TTLM_ULINK attributes are used to specify the
- *	TID to Link mapping for downlink/uplink traffic.
- *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -1581,10 +1571,8 @@ enum nl80211_commands {
 
 	NL80211_CMD_SET_HW_TIMESTAMP,
 
-	NL80211_CMD_LINKS_REMOVED,
-
-	NL80211_CMD_SET_TID_TO_LINK_MAPPING,
-
+	NL80211_CMD_ANDROID_KABI_RESERVED_2,
+	NL80211_CMD_ANDROID_KABI_RESERVED_3,
 	NL80211_CMD_ANDROID_KABI_RESERVED_4,
 	NL80211_CMD_ANDROID_KABI_RESERVED_5,
 	NL80211_CMD_ANDROID_KABI_RESERVED_6,
@@ -2836,22 +2824,6 @@ enum nl80211_commands {
  *	index. If the userspace includes more RNR elements than number of
  *	MBSSID elements then these will be added in every EMA beacon.
  *
- * @NL80211_ATTR_MLO_LINK_DISABLED: Flag attribute indicating that the link is
- *	disabled.
- *
- * @NL80211_ATTR_BSS_DUMP_INCLUDE_USE_DATA: Include BSS usage data, i.e.
- *	include BSSes that can only be used in restricted scenarios and/or
- *	cannot be used at all.
- *
- * @NL80211_ATTR_MLO_TTLM_DLINK: Binary attribute specifying the downlink TID to
- *      link mapping. The length is 8 * sizeof(u16). For each TID the link
- *      mapping is as defined in section 9.4.2.314 (TID-To-Link Mapping element)
- *      in Draft P802.11be_D4.0.
- * @NL80211_ATTR_MLO_TTLM_ULINK: Binary attribute specifying the uplink TID to
- *      link mapping. The length is 8 * sizeof(u16). For each TID the link
- *      mapping is as defined in section 9.4.2.314 (TID-To-Link Mapping element)
- *      in Draft P802.11be_D4.0.
- *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -3391,13 +3363,10 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_EMA_RNR_ELEMS,
 
-	NL80211_ATTR_MLO_LINK_DISABLED,
-
-	NL80211_ATTR_BSS_DUMP_INCLUDE_USE_DATA,
-
-	NL80211_ATTR_MLO_TTLM_DLINK,
-	NL80211_ATTR_MLO_TTLM_ULINK,
-
+	NL80211_ATTR_ANDROID_KABI_RESERVED_4,
+	NL80211_ATTR_ANDROID_KABI_RESERVED_5,
+	NL80211_ATTR_ANDROID_KABI_RESERVED_6,
+	NL80211_ATTR_ANDROID_KABI_RESERVED_7,
 	NL80211_ATTR_ANDROID_KABI_RESERVED_8,
 	NL80211_ATTR_ANDROID_KABI_RESERVED_9,
 	NL80211_ATTR_ANDROID_KABI_RESERVED_10,
@@ -3419,7 +3388,7 @@ enum nl80211_attrs {
 
 	/* add attributes here, update the policy in nl80211.c */
 
-	__NL80211_ATTR_MAX_IMPLEMENTED = NL80211_ATTR_MLO_TTLM_ULINK,
+	__NL80211_ATTR_MAX_IMPLEMENTED = NL80211_ATTR_EMA_RNR_ELEMS,
 	__NL80211_ATTR_AFTER_LAST,
 	NUM_NL80211_ATTR = __NL80211_ATTR_AFTER_LAST,
 	NL80211_ATTR_MAX = __NL80211_ATTR_AFTER_LAST - 1

@@ -3921,24 +3921,29 @@ TRACE_EVENT(rdev_del_link_station,
 		  __entry->link_id)
 );
 
-TRACE_EVENT(rdev_set_ttlm,
+TRACE_EVENT(rdev_set_hw_timestamp,
 	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
-		 struct cfg80211_ttlm_params *params),
-	TP_ARGS(wiphy, netdev, params),
+		 struct cfg80211_set_hw_timestamp *hwts),
+
+	TP_ARGS(wiphy, netdev, hwts),
+
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		NETDEV_ENTRY
-		__array(u8, dlink, sizeof(u16) * 8)
-		__array(u8, ulink, sizeof(u16) * 8)
+		MAC_ENTRY(macaddr)
+		__field(bool, enable)
 	),
+
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		NETDEV_ASSIGN;
-		memcpy(__entry->dlink, params->dlink, sizeof(params->dlink));
-		memcpy(__entry->ulink, params->ulink, sizeof(params->ulink));
+		MAC_ASSIGN(macaddr, hwts->macaddr);
+		__entry->enable = hwts->enable;
 	),
-	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT,
-		  WIPHY_PR_ARG, NETDEV_PR_ARG)
+
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", mac %pM, enable: %u",
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->macaddr,
+		  __entry->enable)
 );
 
 #endif /* !__RDEV_OPS_TRACE || TRACE_HEADER_MULTI_READ */
