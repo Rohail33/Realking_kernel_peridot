@@ -521,15 +521,20 @@ flash_generic() {
             imgblock=/dev/block/mapper/$1_ak3;
             ui_print " " "Warning: $1$slot replaced in super. Reboot before further logical partition operations.";
           else
-            echo "Creating $1_ak3 failed. Attempting to resize $1$slot..." >&2;
-            $bin/httools_static umount $1 || abort "Unmounting $1 failed. Aborting...";
-            if [ -e $path/$1-verity ]; then
-              $bin/lptools_static unmap $1-verity || abort "Unmapping $1-verity failed. Aborting...";
+            if [ "$1" = "vendor_dlkm" ]; then
+              echo "Creating $1_ak3 failed. Skipping resize for $1$slot to avoid super partition table changes." >&2;
+              ui_print " " "Warning: using existing $1$slot layout without resize.";
+            else
+              echo "Creating $1_ak3 failed. Attempting to resize $1$slot..." >&2;
+              $bin/httools_static umount $1 || abort "Unmounting $1 failed. Aborting...";
+              if [ -e $path/$1-verity ]; then
+                $bin/lptools_static unmap $1-verity || abort "Unmapping $1-verity failed. Aborting...";
+              fi
+              $bin/lptools_static unmap $1$slot || abort "Unmapping $1$slot failed. Aborting...";
+              $bin/lptools_static resize $1$slot $imgsz || abort "Resizing $1$slot failed. Aborting...";
+              $bin/lptools_static map $1$slot || abort "Mapping $1$slot failed. Aborting...";
+              isunmounted=1;
             fi
-            $bin/lptools_static unmap $1$slot || abort "Unmapping $1$slot failed. Aborting...";
-            $bin/lptools_static resize $1$slot $imgsz || abort "Resizing $1$slot failed. Aborting...";
-            $bin/lptools_static map $1$slot || abort "Mapping $1$slot failed. Aborting...";
-            isunmounted=1;
           fi
         fi
       fi
