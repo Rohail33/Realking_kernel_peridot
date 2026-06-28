@@ -2849,12 +2849,13 @@ static void stmmac_bump_dma_threshold(struct stmmac_priv *priv, u32 chan)
 static int stmmac_tx_clean(struct stmmac_priv *priv, int budget, u32 queue)
 {
 	struct stmmac_tx_queue *tx_q = &priv->dma_conf.tx_queue[queue];
+	struct stmmac_txq_stats *txq_stats = &priv->xstats.txq_stats[queue];
 	unsigned int bytes_compl = 0, pkts_compl = 0;
 	unsigned int entry, xmits = 0, count = 0;
+	u32 tx_packets = 0, tx_errors = 0;
+	unsigned long flags;
 
 	__netif_tx_lock_bh(netdev_get_tx_queue(priv->dev, queue));
-
-	priv->xstats.tx_clean++;
 
 	tx_q->xsk_frames_done = 0;
 
@@ -2903,13 +2904,11 @@ static int stmmac_tx_clean(struct stmmac_priv *priv, int budget, u32 queue)
 		if (likely(!(status & tx_not_ls))) {
 			/* ... verify the status error condition */
 			if (unlikely(status & tx_err)) {
-				priv->dev->stats.tx_errors++;
+				tx_errors++;
 				if (unlikely(status & tx_err_bump_tc))
 					stmmac_bump_dma_threshold(priv, queue);
 			} else {
-				priv->dev->stats.tx_packets++;
-				priv->xstats.tx_pkt_n++;
-				priv->xstats.txq_stats[queue].tx_pkt_n++;
+				tx_packets++;
 
 				if (priv->dev->stats.tx_packets == 1)
 #if (IS_ENABLED(CONFIG_BOOTMARKER_PROXY))
@@ -3017,6 +3016,14 @@ static int stmmac_tx_clean(struct stmmac_priv *priv, int budget, u32 queue)
 	/* We still have pending packets, let's call for a new scheduling */
 	if (tx_q->dirty_tx != tx_q->cur_tx)
 		stmmac_tx_timer_arm(priv, queue);
+
+	flags = u64_stats_update_begin_irqsave(&txq_stats->syncp);
+	txq_stats->tx_packets += tx_packets;
+	txq_stats->tx_pkt_n += tx_packets;
+	txq_stats->tx_clean++;
+	u64_stats_update_end_irqrestore(&txq_stats->syncp, flags);
+
+	priv->xstats.tx_errors += tx_errors;
 
 	__netif_tx_unlock_bh(netdev_get_tx_queue(priv->dev, queue));
 
@@ -5657,8 +5664,7 @@ read_again:
 		prefetch(np);
 
 		if (priv->extend_desc)
-			stmmac_rx_extended_status(priv, &priv->dev->stats,
-					&priv->xstats, rx_q->dma_erx + entry);
+			stmmac_rx_extended_status(priv, &priv->xstats, rx_q->dma_erx + entry);
 		if (unlikely(status & discard_frame)) {
 			page_pool_recycle_direct(rx_q->page_pool, buf->page);
 			buf->page = NULL;

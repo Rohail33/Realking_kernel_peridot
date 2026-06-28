@@ -1577,6 +1577,21 @@ struct link_station_del_parameters {
 };
 
 /**
+ * struct cfg80211_ttlm_params: TID to link mapping parameters
+ *
+ * Used for setting a TID to link mapping.
+ *
+ * @dlink: Downlink TID to link mapping, as defined in section 9.4.2.314
+ *     (TID-To-Link Mapping element) in Draft P802.11be_D4.0.
+ * @ulink: Uplink TID to link mapping, as defined in section 9.4.2.314
+ *     (TID-To-Link Mapping element) in Draft P802.11be_D4.0.
+ */
+struct cfg80211_ttlm_params {
+	u16 dlink[8];
+	u16 ulink[8];
+};
+
+/**
  * struct station_parameters - station parameters
  *
  * Used to change and create a new station.
@@ -4397,13 +4412,14 @@ struct mgmt_frame_regs {
  *	or receive frames and it is bounded to a running wdev.
  *	Background radar/CAC detection allows to avoid the CAC downtime
  *	switching to a different channel during CAC detection on the selected
- *	radar channel.
+*	radar channel.
  *	The caller is expected to set chandef pointer to NULL in order to
  *	disable background CAC/radar detection.
  * @add_link_station: Add a link to a station.
  * @mod_link_station: Modify a link of a station.
  * @del_link_station: Remove a link of a station.
  *
+ * @set_ttlm: set the TID to link mapping.
  * @set_hw_timestamp: Enable/disable HW timestamping of TM/FTM frames.
  */
 struct cfg80211_ops {
@@ -4758,6 +4774,8 @@ struct cfg80211_ops {
 				    struct link_station_parameters *params);
 	int	(*del_link_station)(struct wiphy *wiphy, struct net_device *dev,
 				    struct link_station_del_parameters *params);
+	int	(*set_ttlm)(struct wiphy *wiphy, struct net_device *dev,
+			    struct cfg80211_ttlm_params *params);
 	ANDROID_KABI_USE(1, int (*set_hw_timestamp)(struct wiphy *wiphy, struct net_device *dev,
 						    struct cfg80211_set_hw_timestamp *hwts));
 

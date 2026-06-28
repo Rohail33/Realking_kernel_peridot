@@ -701,7 +701,7 @@ void put_dmabuf_info(struct task_dma_buf_info *dmabuf_info)
 		pr_alert("destroying task_dma_buf_info with non-empty dmabuf list %u\n",
 			 dmabuf_info->dmabuf_count);
 
-	kfree(dmabuf_info);
+kfree(dmabuf_info);
 }
 
 /*
@@ -735,7 +735,7 @@ int dma_buf_begin_new_exec(struct files_struct *old_files)
 		rcu_read_lock();
 		num_dmabuf_fds = COUNT_DMABUF_FDS(current->files, files_lookup_fd_rcu);
 		rcu_read_unlock();
-retry:
+	retry:
 		if (!task_dmabuf_records_preload(num_dmabuf_fds))
 			goto err_prealloc;
 

@@ -1475,11 +1475,11 @@ static int sdhci_msm_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		 * It is not necessary to set it again here.
 		 */
 
-		config = readl_relaxed(host->ioaddr + msm_offset->core_vendor_spec);
-		config |= CORE_HC_SELECT_IN_EN;
-		config &= ~CORE_HC_SELECT_IN_MASK;
-		config |= CORE_HC_SELECT_IN_SDR50;
-		writel_relaxed(config, host->ioaddr + msm_offset->core_vendor_spec);
+config = readl_relaxed(host->ioaddr + msm_offset->core_vendor_spec);
+	config |= CORE_HC_SELECT_IN_EN;
+	config &= ~CORE_HC_SELECT_IN_MASK;
+	config |= CORE_HC_SELECT_IN_EN | CORE_HC_SELECT_IN_SDR50;
+	writel_relaxed(config, host->ioaddr + msm_offset->core_vendor_spec);
 	}
 
 	/*

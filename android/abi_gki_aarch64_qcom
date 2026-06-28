@@ -72,17 +72,21 @@
   bdev_end_io_acct
   bdev_start_io_acct
   bin2hex
+  __bio_add_page
   bio_associate_blkg
   bio_chain
   bio_endio
   bio_end_io_acct_remapped
   bio_free_pages
+<<<<<<< HEAD
+=======
+  bio_kmalloc
+>>>>>>> cf11ca5383275cffe8e7266b305c1ca7e862293f
   bio_reset
   bio_split
   bio_start_io_acct
   bio_kmalloc
   bitmap_allocate_region
-  __bio_add_page
   __bitmap_and
   __bitmap_andnot
   __bitmap_clear
@@ -625,6 +629,7 @@
   devm_gpiod_put
   devm_gpio_request_one
   devm_hwspin_lock_register
+  devm_hwspin_lock_request_specific
   devm_i2c_new_dummy_device
   devm_iio_channel_get
   devm_iio_device_alloc
@@ -1341,6 +1346,7 @@
   gpiod_get_value
   gpiod_get_value_cansleep
   gpiod_is_active_low
+  gpiod_put
   gpiod_set_consumer_name
   gpiod_set_debounce
   gpiod_set_raw_value
@@ -2121,17 +2127,6 @@
   net_namespace_list
   net_ns_type_operations
   net_ratelimit
-  nf_log_buf_add
-  nf_log_buf_close
-  nf_log_buf_open
-  nf_log_packet
-  nf_log_register
-  nf_log_set
-  nf_log_unregister
-  nf_log_unset
-  nf_logger_find_get
-  nf_logger_put
-  __nf_ip6_route
   nfc_add_se
   nfc_allocate_device
   nfc_alloc_recv_skb
@@ -2158,6 +2153,17 @@
   nfc_tm_deactivated
   nfc_unregister_device
   nfc_vendor_cmd_reply
+  __nf_ip6_route
+  nf_log_buf_add
+  nf_log_buf_close
+  nf_log_buf_open
+  nf_logger_find_get
+  nf_logger_put
+  nf_log_packet
+  nf_log_register
+  nf_log_set
+  nf_log_unregister
+  nf_log_unset
   nla_find
   nla_memcpy
   __nla_parse
@@ -2739,7 +2745,6 @@
   rc_allocate_device
   rc_free_device
   rc_register_device
-  rc_unregister_device
   rcu_barrier
   rcu_barrier_tasks
   rcu_barrier_tasks_trace
@@ -2760,6 +2765,7 @@
   rcu_jiffies_till_stall_check
   rcu_nocb_cpu_deoffload
   rcu_nocb_cpu_offload
+  rc_unregister_device
   __rcu_read_lock
   __rcu_read_unlock
   rcu_read_unlock_trace_special
@@ -3292,6 +3298,7 @@
   softnet_data
   sort
   __spi_alloc_controller
+  spi_finalize_current_message
   spi_register_controller
   __spi_register_driver
   spi_setup
@@ -3367,6 +3374,7 @@
   __sw_hweight32
   __sw_hweight64
   __sw_hweight8
+  symbol_put_addr
   sync_blockdev
   sync_file_create
   sync_file_get_fence
@@ -3380,7 +3388,6 @@
   synchronize_srcu_expedited
   synth_event_create
   synth_event_delete
-  symbol_put_addr
   syscon_node_to_regmap
   syscon_regmap_lookup_by_phandle
   sysctl_nf_log_all_netns
@@ -3821,6 +3828,7 @@
   tty_port_put
   tty_port_register_device
   tty_port_tty_get
+  __tty_port_tty_hangup
   tty_port_tty_hangup
   tty_port_tty_wakeup
   tty_register_driver
@@ -4314,5 +4322,5 @@
   zs_malloc
   zs_map_object
   zs_pool_stats
-  zs_unmap_object
   zstd_compress_bound
+  zs_unmap_object
