@@ -20,7 +20,10 @@ export MODNAME=qca_cld3_qca6750
 export DYNAMIC_SINGLE_CHIP=qca6750
 export WLAN_PROFILE=qca6750
 
+export KERNEL_ROOT=$(pwd)
+
 # Techpack paths
+export WLAN_PLATFORM_ROOT=$(pwd)/techpack/wlan
 export AUDIO_ROOT="$KERNEL_DIR/techpack/audio-kernel"
 export CAMERA_ROOT="$KERNEL_DIR/techpack/camera-kernel"
 export DISPLAY_ROOT="$KERNEL_DIR/techpack/display-drivers"
