@@ -70,30 +70,23 @@ int checksum_cmp(const u8 *data, int size, int mode)
 	u32 r_checksum = 0;
 	u32 i;
 
-	if (((mode == CHECKSUM_MODE_U8_LE) && (size < 2)) ||
-	    ((mode == CHECKSUM_MODE_U16_LE) && (size < 4)) ||
-	    ((mode == CHECKSUM_MODE_U16_LE) && (size % 2 != 0)))
-		return 1;
-
 	if (mode == CHECKSUM_MODE_U8_LE) {
+		if (size < 2)
+			return 1;
 		for (i = 0; i < size - 2; i++)
 			cal_checksum += data[i];
-		r_checksum += data[i++];
-		r_checksum += (data[i] << 8);
+
+		r_checksum = data[size - 2] + (data[size - 1] << 8);
 		return (cal_checksum & 0xFFFF) == r_checksum ? 0 : 1;
 	}
 
-	if (mode == CHECKSUM_MODE_U16_LE) {
-		for (i = 0; i < size - 4; i += 2)
-			cal_checksum += data[i] + (data[i + 1] << 8);
-		r_checksum += data[i++];
-		r_checksum += (data[i++] << 8);
-		r_checksum += (data[i++] << 16);
-		r_checksum += (data[i] << 24);
-		return cal_checksum == r_checksum ? 0 : 1;
-	}
-
-	return 1;
+	if (size < 4)
+		return 1;
+	for (i = 0; i < size - 4; i += 2)
+		cal_checksum += data[i] + (data[i + 1] << 8);
+	r_checksum = data[size - 4] + (data[size - 3] << 8) +
+		(data[size - 2] << 16) + (data[size - 1] << 24);
+	return cal_checksum == r_checksum ? 0 : 1;
 }
 
 /* return 1 if all data is zero or ff
@@ -157,53 +150,32 @@ void goodix_rotate_abcd2cbad(int tx, int rx, s16 *data)
 }
 
 /* get ic type */
-int goodix_get_ic_type(struct device_node *node, const struct of_device_id *goodix_dt_ids)
+int goodix_get_ic_type(struct device_node *node)
 {
-	const struct of_device_id *match;
+	const char *name_tmp;
 	int ret;
 
-	match = of_match_node(of_match_ptr(goodix_dt_ids), node);
-	if (!match) {
-		ts_err("failed to match device tree node");
-		return -EINVAL;
+	ret = of_property_read_string(node, "compatible", &name_tmp);
+	if (ret < 0) {
+		ts_err("get compatible failed");
+		return ret;
 	}
-	ts_info("ic type is %s", match->compatible);
 
-	if (strstr(match->compatible, "9897")) {
+	if (strstr(name_tmp, "9897")) {
 		ts_info("ic type is BerlinA");
 		ret = IC_TYPE_BERLIN_A;
-	} else if (strstr(match->compatible, "9966") || strstr(match->compatible, "7986")) {
+	} else if (strstr(name_tmp, "9966") || strstr(name_tmp, "spi")) {
 		ts_info("ic type is BerlinB");
 		ret = IC_TYPE_BERLIN_B;
-	} else if (strstr(match->compatible, "9916") || strstr(match->compatible, "spi")) {
+	} else if (strstr(name_tmp, "9916")) {
 		ts_info("ic type is BerlinD");
 		ret = IC_TYPE_BERLIN_D;
+	} else if (strstr(name_tmp, "9926")) {
+		ret = IC_TYPE_ATB;
 	} else {
 		ts_info("can't find valid ic_type");
 		ret = -EINVAL;
 	}
-
-	return ret;
-}
-
-/* get touch type */
-int goodix_get_touch_type(struct device_node *node)
-{
-	const char *touch_type;
-	int ret;
-
-	ret = of_property_read_string(node, "goodix,touch-type", &touch_type);
-	if (ret) {
-		ts_err("No touch type found\n");
-		return -EINVAL;
-	}
-
-	if (!strcmp(touch_type, "primary"))
-		ret = PRIMARY_TOUCH_IDX;
-	else if (!strcmp(touch_type, "secondary"))
-		ret = SECONDARY_TOUCH_IDX;
-	else
-		ret = -EINVAL;
 
 	return ret;
 }

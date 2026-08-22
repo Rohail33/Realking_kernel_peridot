@@ -1,19 +1,19 @@
- /*
-  * Goodix Touchscreen Driver
-  * Copyright (C) 2020 - 2021 Goodix, Inc.
-  *
-  * This program is free software; you can redistribute it and/or modify
-  * it under the terms of the GNU General Public License as published by
-  * the Free Software Foundation; either version 2 of the License, or
-  * (at your option) any later version.
-  *
-  * This program is distributed in the hope that it will be a reference
-  * to you, when you are integrating the GOODiX's CTP IC into your system,
-  * but WITHOUT ANY WARRANTY; without even the implied warranty of
-  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  * General Public License for more details.
-  *
-  */
+/*
+ * Goodix Touchscreen Driver
+ * Copyright (C) 2020 - 2021 Goodix, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be a reference
+ * to you, when you are integrating the GOODiX's CTP IC into your system,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ */
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
@@ -21,15 +21,15 @@
 #include "goodix_ts_core.h"
 
 #define TS_DRIVER_NAME				"gtx8_i2c"
-#define I2C_MAX_TRANSFER_SIZE		256
-#define GOODIX_BUS_RETRY_TIMES		2
+#define I2C_MAX_TRANSFER_SIZE		60
+#define GOODIX_BUS_RETRY_TIMES		3
 #define GOODIX_REG_ADDR_SIZE		4
 
 static struct platform_device *goodix_pdev;
 struct goodix_bus_interface goodix_i2c_bus;
 
 static int goodix_i2c_read(struct device *dev, unsigned int reg,
-			 unsigned char *data, unsigned int len)
+		unsigned char *data, unsigned int len)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	unsigned int transfer_length = 0;
@@ -70,18 +70,20 @@ static int goodix_i2c_read(struct device *dev, unsigned int reg,
 		msgs[1].len = transfer_length;
 
 		for (retry = 0; retry < GOODIX_BUS_RETRY_TIMES; retry++) {
-			if (likely(i2c_transfer(client->adapter, msgs, 2) == 2)) {
-				memcpy(&data[pos], msgs[1].buf, transfer_length);
+			if (likely(i2c_transfer(client->adapter,
+						msgs, 2) == 2)) {
+				memcpy(&data[pos], msgs[1].buf,
+				       transfer_length);
 				pos += transfer_length;
 				address += transfer_length;
 				break;
 			}
 			ts_info("I2c read retry[%d]:0x%x", retry + 1, reg);
-			usleep_range(2000, 2100);
+			msleep(20);
 		}
 		if (unlikely(retry == GOODIX_BUS_RETRY_TIMES)) {
 			ts_err("I2c read failed,dev:%02x,reg:%04x,size:%u",
-				client->addr, reg, len);
+			       client->addr, reg, len);
 			r = -EAGAIN;
 			goto read_exit;
 		}
@@ -94,7 +96,7 @@ read_exit:
 }
 
 static int goodix_i2c_write(struct device *dev, unsigned int reg,
-			unsigned char *data, unsigned int len)
+		unsigned char *data, unsigned int len)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	unsigned int pos = 0, transfer_length = 0;
@@ -102,8 +104,8 @@ static int goodix_i2c_write(struct device *dev, unsigned int reg,
 	unsigned char put_buf[128];
 	int retry, r = 0;
 	struct i2c_msg msg = {
-		.addr = client->addr,
-		.flags = !I2C_M_RD,
+			.addr = client->addr,
+			.flags = !I2C_M_RD,
 	};
 
 	if (likely(len + GOODIX_REG_ADDR_SIZE < sizeof(put_buf))) {
@@ -117,9 +119,9 @@ static int goodix_i2c_write(struct device *dev, unsigned int reg,
 
 	while (pos != len) {
 		if (unlikely(len - pos > I2C_MAX_TRANSFER_SIZE -
-				GOODIX_REG_ADDR_SIZE))
+			     GOODIX_REG_ADDR_SIZE))
 			transfer_length = I2C_MAX_TRANSFER_SIZE -
-				GOODIX_REG_ADDR_SIZE;
+			     GOODIX_REG_ADDR_SIZE;
 		else
 			transfer_length = len - pos;
 		msg.buf[0] = (address >> 24) & 0xFF;
@@ -161,29 +163,22 @@ static void goodix_pdev_release(struct device *dev)
 	kfree(goodix_pdev);
 }
 
-#ifdef CONFIG_OF
-static const struct of_device_id i2c_matchs[] = {
-	{.compatible = "goodix,gt9897",},
-	{.compatible = "goodix,gt9966",},
-	{.compatible = "goodix,gt9916",},
-        {.compatible = "goodix,gt9916R",},
-	{},
-};
-MODULE_DEVICE_TABLE(of, i2c_matchs);
-#endif
-
-static int goodix_i2c_probe(struct i2c_client *client,
-	const struct i2c_device_id *dev_id)
+static int goodix_i2c_probe(struct i2c_client *client)
 {
 	int ret = 0;
 
 	ts_info("goodix i2c probe in");
-	ret = i2c_check_functionality(client->adapter, I2C_FUNC_I2C);
+
+	ret = goodix_check_ts_id_gpio(&client->dev);
+	if (ret)
+		return ret;
+	ret = i2c_check_functionality(client->adapter,
+		I2C_FUNC_I2C);
 	if (!ret)
 		return -EIO;
 
 	/* get ic type */
-	ret = goodix_get_ic_type(client->dev.of_node, i2c_matchs);
+	ret = goodix_get_ic_type(client->dev.of_node);
 	if (ret < 0)
 		return ret;
 
@@ -231,6 +226,16 @@ static void goodix_i2c_remove(struct i2c_client *client)
 	platform_device_unregister(goodix_pdev);
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id i2c_matchs[] = {
+	{.compatible = "goodix,gt9897",},
+	{.compatible = "goodix,gt9966",},
+	{.compatible = "goodix,gt9916",},
+	{},
+};
+MODULE_DEVICE_TABLE(of, i2c_matchs);
+#endif
+
 static const struct i2c_device_id i2c_id_table[] = {
 	{TS_DRIVER_NAME, 0},
 	{},
@@ -240,10 +245,10 @@ MODULE_DEVICE_TABLE(i2c, i2c_id_table);
 static struct i2c_driver goodix_i2c_driver = {
 	.driver = {
 		.name = TS_DRIVER_NAME,
-		//.owner = THIS_MODULE,
+		/*.owner = THIS_MODULE,*/
 		.of_match_table = of_match_ptr(i2c_matchs),
 	},
-	.probe = goodix_i2c_probe,
+	.probe_new = goodix_i2c_probe,
 	.remove = goodix_i2c_remove,
 	.id_table = i2c_id_table,
 };

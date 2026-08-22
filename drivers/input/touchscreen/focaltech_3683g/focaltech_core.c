@@ -77,10 +77,8 @@ struct fts_ts_data *fts_data;
 
 static int fts_fod_recovery(struct fts_ts_data *ts_data);
 
-/*****************************************************************************
-* Static function prototypes
-*****************************************************************************/
-static struct xiaomi_touch_interface xiaomi_touch_interfaces;
+static hardware_param_t fts_hardware_param;
+static hardware_operation_t fts_hardware_operation;
 
 void fts_msleep(unsigned long msecs)
 {
@@ -1078,7 +1076,7 @@ static int fts_read_touchdata_spi(struct fts_ts_data *ts_data, u8 *buf)
 	return 0;
 }
 
-static int fts_read_touchdata_i2c(struct fts_ts_data *ts_data, u8 *buf)
+static __maybe_unused int fts_read_touchdata_i2c(struct fts_ts_data *ts_data, u8 *buf)
 {
 	int ret = 0;
 	u32 touch_max_size = 0;
@@ -1128,7 +1126,6 @@ static int fts_read_touchdata_i2c(struct fts_ts_data *ts_data, u8 *buf)
 static int fts_read_parse_touchdata(struct fts_ts_data *ts_data, u8 *touch_buf)
 {
     int ret = 0;
-    u8 gesture_en = 0xFF;
 
     memset(touch_buf, 0xFF, FTS_MAX_TOUCH_BUF - DUMPBUFF_HEAD);
     ts_data->ta_size = ts_data->touch_size;
@@ -2353,87 +2350,59 @@ int fts_switch_edge_filter(struct fts_ts_data *ts_data, bool enable)
     return 0;
 }
 
-static int fts_get_mode_value(int mode, int value_type)
+static void fts_set_cur_value(int mode, int *value)
 {
-	int value = -1;
-        if (mode == TOUCH_MODE_REPORT_RATE ) {
-                return fts_data->report_rate_status ? 480 : 240;
-        }
-
-	if (mode < Touch_Mode_NUM && mode >= 0) {
-		value = xiaomi_touch_interfaces.touch_mode[mode][value_type];
-		FTS_INFO("mode:%d, value_type:%d, value:%d", mode, value_type,
-			 value);
-	} else
-		FTS_ERROR("mode:%d don't support");
-	return value;
-}
-
-static int fts_set_cur_value(int mode, int value)
-{
-        int ret;
 	if (!fts_data || mode < 0) {
 		FTS_ERROR(
 			"Error, fts_data is NULL or the parameter is incorrect");
-		return -1;
+		return;
 	}
-	FTS_INFO("touch mode:%d, value:%d", mode, value);
-	if (mode >= Touch_Mode_NUM) {
-		FTS_ERROR("mode is error:%d", mode);
-		return -EINVAL;
-	}
-	if (mode == Touch_Doubletap_Mode && value >= 0) {
-		fts_update_gesture_state(fts_data, GESTURE_DOUBLETAP, value != 0 ? true : false);
-		return 0;
-	}
-	if (mode == Touch_Singletap_Gesture && value >= 0) {
-		fts_update_gesture_state(fts_data, GESTURE_SINGLETAP, value != 0 ? true : false);
-		return 0;
-	}
-	if (mode == Touch_Fod_Longpress_Gesture && value >= 0) {
-		fts_update_gesture_state(fts_data, GESTURE_FOD, value != 0 ? true : false);
-		return 0;
-	}
-	if (mode == THP_FOD_DOWNUP_CTL && value >= 0) {
-		update_fod_press_status(value != 0);
-		return 0;
-	}
-        if (mode == TOUCH_MODE_REPORT_RATE && value >= 0) {
-                fts_switch_report_rate(fts_data, value != 0 ? true : false);
-                fts_switch_edge_filter(fts_data, value != 0 ? true : false);
-                return 0;
-        }
+	FTS_INFO("touch mode:%d, value:%d", mode, *value);
 
-	xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] = value;
-	if (xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] >
-	    xiaomi_touch_interfaces.touch_mode[mode][GET_MAX_VALUE]) {
-		xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] =
-			xiaomi_touch_interfaces.touch_mode[mode][GET_MAX_VALUE];
-	} else if (xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] <
-		   xiaomi_touch_interfaces.touch_mode[mode][GET_MIN_VALUE]) {
-		xiaomi_touch_interfaces.touch_mode[mode][SET_CUR_VALUE] =
-			xiaomi_touch_interfaces.touch_mode[mode][GET_MIN_VALUE];
+	if (mode == DATA_MODE_14 && *value >= 0) {
+		fts_update_gesture_state(fts_data, GESTURE_DOUBLETAP, *value != 0 ? true : false);
+		return;
 	}
-	return 0;
+	if (mode == DATA_MODE_21 && *value >= 0) {
+		fts_update_gesture_state(fts_data, GESTURE_SINGLETAP, *value != 0 ? true : false);
+		return;
+	}
+	if (mode == DATA_MODE_20 && *value >= 0) {
+		fts_update_gesture_state(fts_data, GESTURE_FOD, *value != 0 ? true : false);
+		return;
+	}
+	if (mode == DATA_MODE_22 && *value >= 0) {
+		update_fod_press_status(*value != 0);
+		return;
+	}
+	if (mode == DATA_MODE_9 && *value >= 0) {
+		fts_switch_report_rate(fts_data, *value != 0 ? true : false);
+		fts_switch_edge_filter(fts_data, *value != 0 ? true : false);
+		return;
+	}
 }
 
-static int fts_get_mode_all(int mode, int *value)
+static void fts_get_mode_value(common_data_t *common_data)
 {
-	if (mode < Touch_Mode_NUM && mode >= 0) {
-		value[0] =
-			xiaomi_touch_interfaces.touch_mode[mode][GET_CUR_VALUE];
-		value[1] =
-			xiaomi_touch_interfaces.touch_mode[mode][GET_DEF_VALUE];
-		value[2] =
-			xiaomi_touch_interfaces.touch_mode[mode][GET_MIN_VALUE];
-		value[3] =
-			xiaomi_touch_interfaces.touch_mode[mode][GET_MAX_VALUE];
-	} else {
-		FTS_ERROR("mode:%d don't support", mode);
+	if (!fts_data || !common_data)
+		return;
+
+	FTS_INFO("get mode:%d", common_data->mode);
+
+	switch (common_data->mode) {
+	case DATA_MODE_14:
+		common_data->data_buf[0] = (fts_data->gesture_status & GESTURE_DOUBLETAP) != 0;
+		break;
+	case DATA_MODE_21:
+		common_data->data_buf[0] = (fts_data->gesture_status & GESTURE_SINGLETAP) != 0;
+		break;
+	case DATA_MODE_20:
+		common_data->data_buf[0] = (fts_data->gesture_status & GESTURE_FOD) != 0;
+		break;
+	default:
+		common_data->data_buf[0] = 0;
+		break;
 	}
-	FTS_INFO("mode:%d, value:%d:%d:%d:%d", mode, value[0], value[1],
-		 value[2], value[3]);
-	return 0;
 }
 
 static void fts_init_touchmode_data(struct fts_ts_data *ts_data)
@@ -2441,21 +2410,65 @@ static void fts_init_touchmode_data(struct fts_ts_data *ts_data)
 	FTS_INFO("touchfeature value init done");
 }
 
+static int fts_ic_get_lockdown_info(u8 lockdown_info[8])
+{
+	return 0;
+}
+
+static int fts_ic_get_fw_version(char fw_version[64])
+{
+	if (!fts_data)
+		return -1;
+
+	scnprintf(fw_version, 64, "%s", FTS_DRIVER_VERSION);
+	return 0;
+}
+
+static void fts_ic_switch_mode(u8 gesture_type)
+{
+	if (!fts_data)
+		return;
+
+	FTS_INFO("switch mode, gesture_type: 0x%02x", gesture_type);
+
+	fts_data->gesture_status = gesture_type;
+	fts_update_gesture_state(fts_data, GESTURE_DOUBLETAP, (gesture_type & GESTURE_DOUBLETAP) != 0);
+	fts_update_gesture_state(fts_data, GESTURE_SINGLETAP, (gesture_type & GESTURE_SINGLETAP) != 0);
+	fts_update_gesture_state(fts_data, GESTURE_FOD, (gesture_type & GESTURE_FOD) != 0);
+}
+
 static void fts_init_xiaomi_touchfeature(struct fts_ts_data *ts_data)
 {
 	mutex_init(&ts_data->cmd_update_mutex);
-	memset(&xiaomi_touch_interfaces, 0x00,
-	       sizeof(struct xiaomi_touch_interface));
+	memset(&fts_hardware_param, 0x00, sizeof(hardware_param_t));
+	memset(&fts_hardware_operation, 0x00, sizeof(hardware_operation_t));
 
-	xiaomi_touch_interfaces.getModeValue = fts_get_mode_value;
-	xiaomi_touch_interfaces.setModeValue = fts_set_cur_value;
-	xiaomi_touch_interfaces.getModeAll = fts_get_mode_all;
+	fts_hardware_param.x_resolution = ts_data->pdata->x_max;
+	fts_hardware_param.y_resolution = ts_data->pdata->y_max;
+	fts_hardware_param.rx_num = 0;
+	fts_hardware_param.tx_num = 0;
+	fts_hardware_param.super_resolution_factor = 1;
+	fts_hardware_param.frame_data_page_size = 1;
+	fts_hardware_param.frame_data_buf_size = 1;
+	fts_hardware_param.raw_data_page_size = 1;
+	fts_hardware_param.raw_data_buf_size = 1;
+	scnprintf(fts_hardware_param.config_file_name, 64, "%s", "fts_config");
+	scnprintf(fts_hardware_param.driver_version, 64, "%s", FTS_DRIVER_VERSION);
+	scnprintf(fts_hardware_param.fw_version, 64, "%s", FTS_DRIVER_VERSION);
+
+	fts_hardware_operation.set_mode_value = fts_set_cur_value;
+	fts_hardware_operation.get_mode_value = fts_get_mode_value;
+	fts_hardware_operation.ic_switch_mode = fts_ic_switch_mode;
+	fts_hardware_operation.ic_get_lockdown_info = fts_ic_get_lockdown_info;
+	fts_hardware_operation.ic_get_fw_version = fts_ic_get_fw_version;
+
 	fts_init_touchmode_data(ts_data);
 
 	ts_data->gesture_support = 1;
 	ts_data->pdata->fod_status = -1;
 
-	xiaomitouch_register_modedata(0, &xiaomi_touch_interfaces);
+	register_touch_panel(ts_data->dev, 0, &fts_hardware_param,
+		&fts_hardware_operation);
 }
 
 static int fts_notifier_callback_exit(struct fts_ts_data *ts_data)
@@ -2717,6 +2730,7 @@ int fts_ts_remove_entry(struct fts_ts_data *ts_data)
 {
 	FTS_FUNC_ENTER();
 	cancel_work_sync(&ts_data->resume_work);
+	unregister_touch_panel(0);
 	fts_notifier_callback_exit(ts_data);
 	free_irq(ts_data->irq, ts_data);
 	fts_fwupg_exit(ts_data);
