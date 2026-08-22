@@ -183,42 +183,6 @@ if [ $BUILD_HAS_MODULES -gt 0 ]; then
         mkdir -p "$TEMP_ANY_KERNEL_DIR/_modules"
     fi
 
-    # Check if _vendor_boot exists in template
-    if [ -d "$TEMP_ANY_KERNEL_DIR/_vendor_boot" ]; then
-        echo "Found existing _vendor_boot directory, clearing contents..."
-        rm -f "$TEMP_ANY_KERNEL_DIR/_vendor_boot"/*.ko
-    else
-        echo "Creating _vendor_boot directory..."
-        mkdir -p "$TEMP_ANY_KERNEL_DIR/_vendor_boot"
-    fi
-
-    # Check if _system_dlkm exists in template
-    if [ -d "$TEMP_ANY_KERNEL_DIR/_system_dlkm" ]; then
-        echo "Found existing _system_dlkm directory, clearing contents..."
-        rm -f "$TEMP_ANY_KERNEL_DIR/_system_dlkm"/*.ko
-    else
-        echo "Creating _system_dlkm directory..."
-        mkdir -p "$TEMP_ANY_KERNEL_DIR/_system_dlkm"
-    fi
-
-    # Optional direct vendor_boot staging.
-    # Shared modules can also be patched from _modules by anykernel.sh.
-    VENDOR_BOOT_MODULES=()
-
-    for module in "${VENDOR_BOOT_MODULES[@]}"; do
-        find "$MODULES_DIR/lib/modules" -type f -name "$module" -exec cp -v {} "$TEMP_ANY_KERNEL_DIR/_vendor_boot/" \;
-    done
-
-    # List of specific modules to include in system_dlkm image
-    SYSTEM_DLKM_MODULES=(
-        "zram.ko"
-        "zsmalloc.ko"
-    )
-
-    for module in "${SYSTEM_DLKM_MODULES[@]}"; do
-        find "$MODULES_DIR/lib/modules" -type f -name "$module" -exec cp -v {} "$TEMP_ANY_KERNEL_DIR/_system_dlkm/" \;
-    done
-
     # List of specific modules to include
     IMPORTANT_MODULES=(
         "cnss_nl.ko" "cnss_plat_ipc_qmi_svc.ko" "cnss_prealloc.ko" "cnss_utils.ko" "cnss2.ko"

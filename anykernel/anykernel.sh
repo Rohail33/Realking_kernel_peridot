@@ -25,9 +25,6 @@ is_slot_device=1
 ramdisk_compression=auto
 patch_vbmeta_flag=auto
 vendor_dlkm_partition=vendor_dlkm
-system_dlkm_partition=system_dlkm
-vendor_boot_partition=vendor_boot
-vendor_boot_single_module_updated=false
 
 # import functions/variables and setup patching - see for reference (DO NOT REMOVE)
 . tools/ak3-core.sh
@@ -112,128 +109,6 @@ resolve_all_modules_dirs() {
 	return 0
 }
 
-resolve_erofs_root_dir() {
-	local extract_dir=$1
-	local partition_name=$2
-	local modules_dir
-
-	modules_dir=$(resolve_modules_dir "$extract_dir" "$partition_name") || return 1
-	echo "$(dirname "$(dirname "$modules_dir")")"
-	return 0
-}
-
-append_erofs_metadata() {
-	local extract_dir=$1
-	local partition_name=$2
-	local relative_path=$3
-	local file_context=$4
-
-	cat ${extract_dir}/config/${partition_name}_fs_config | grep -q "^${partition_name}/${relative_path} " || \
-		echo "${partition_name}/${relative_path} 0 0 0644" >> ${extract_dir}/config/${partition_name}_fs_config
-	cat ${extract_dir}/config/${partition_name}_file_contexts | grep -q "^/${partition_name}/${relative_path} " || \
-		echo "/${partition_name}/${relative_path} ${file_context}" >> ${extract_dir}/config/${partition_name}_file_contexts
-}
-
-SYSTEM_DLKM_MODULES="
-	zram.ko
-	zsmalloc.ko
-"
-
-copy_special_modules() {
-	local dst_dir=$1
-	local additional_modules="$2"
-	local allow_create=$3
-	local partition_root_dir=$4
-	local search_dir src_path module_name existing_path target_path relative_path tmp_path module_size
-	local processed_modules=""
-
-	[ -d ${dst_dir} ] || mkdir -p ${dst_dir}
-
-	for module_name in $SYSTEM_DLKM_MODULES $additional_modules; do
-		case " $processed_modules " in
-			*" ${module_name} "*) continue ;;
-		esac
-		processed_modules="${processed_modules} ${module_name}"
-		src_path=""
-		existing_path=$(find "$dst_dir" -type f \( -name "${module_name}" -o -name "*${module_name}" \) | head -n1)
-
-		for search_dir in ${home}/_system_dlkm ${home}/_modules $search_system_dlkm_modules_dir $search_vendor_dlkm_modules_dir; do
-			[ -d "$search_dir" ] || continue
-			src_path=$(find "$search_dir" -type f \( -name "${module_name}" -o -name "*${module_name}" \) | head -n1)
-			[ -n "$src_path" ] || continue
-			break
-		done
-
-		if [ -z "$src_path" ]; then
-			ui_print "! Skipping ${module_name} in /${system_dlkm_partition}: source not found"
-			system_dlkm_failed_modules="${system_dlkm_failed_modules} ${module_name}(source-missing)"
-			continue
-		fi
-		if [ ! -s "$src_path" ]; then
-			ui_print "! Skipping ${module_name} in /${system_dlkm_partition}: source is empty"
-			system_dlkm_failed_modules="${system_dlkm_failed_modules} ${module_name}(source-empty)"
-			continue
-		fi
-
-		if [ -n "$existing_path" ]; then
-			target_path=$existing_path
-		else
-			[ "$allow_create" = "true" ] || continue
-			target_path=${dst_dir}/${module_name}
-		fi
-
-		mkdir -p "$(dirname "$target_path")"
-		tmp_path=${target_path}.aknew
-		rm -f "$tmp_path"
-		if ! cp -f "$src_path" "$tmp_path"; then
-			ui_print "! Skipping ${module_name} in /${system_dlkm_partition}: copy failed"
-			system_dlkm_failed_modules="${system_dlkm_failed_modules} ${module_name}(copy-failed)"
-			rm -f "$tmp_path"
-			continue
-		fi
-		if [ ! -s "$tmp_path" ]; then
-			ui_print "! Skipping ${module_name} in /${system_dlkm_partition}: copied file is empty"
-			system_dlkm_failed_modules="${system_dlkm_failed_modules} ${module_name}(copied-empty)"
-			rm -f "$tmp_path"
-			continue
-		fi
-		if ! mv -f "$tmp_path" "$target_path"; then
-			ui_print "! Skipping ${module_name} in /${system_dlkm_partition}: failed to move into place"
-			system_dlkm_failed_modules="${system_dlkm_failed_modules} ${module_name}(move-failed)"
-			rm -f "$tmp_path"
-			continue
-		fi
-		module_size=$(wc -c < "$target_path" 2>/dev/null || echo 0)
-		if [ "$module_size" -le 0 ]; then
-			ui_print "! Skipping ${module_name} in /${system_dlkm_partition}: installed file is empty"
-			system_dlkm_failed_modules="${system_dlkm_failed_modules} ${module_name}(installed-empty)"
-			rm -f "$target_path"
-			continue
-		fi
-		relative_path=${target_path#${partition_root_dir}/}
-		system_dlkm_copied_modules="${system_dlkm_copied_modules} ${relative_path}"
-	done
-}
-
-collect_shared_system_dlkm_modules() {
-	local system_modules_dir=$1
-	local vendor_modules_dir=$2
-	local module_src module_name system_match vendor_match
-
-	system_dlkm_shared_modules=""
-	[ -d ${home}/_modules ] || return 0
-
-	for module_src in ${home}/_modules/*.ko; do
-		[ -f "$module_src" ] || continue
-		module_name=$(basename "$module_src")
-		system_match=$(find "$system_modules_dir" -type f \( -name "${module_name}" -o -name "*${module_name}" \) | head -n1)
-		[ -n "$system_match" ] || continue
-		vendor_match=$(find "$vendor_modules_dir" -type f \( -name "${module_name}" -o -name "*${module_name}" \) | head -n1)
-		[ -n "$vendor_match" ] || continue
-		system_dlkm_shared_modules="${system_dlkm_shared_modules} ${module_name}"
-	done
-}
-
 find_named_block() {
 	local partition_name=$1
 	local partition_path
@@ -266,111 +141,6 @@ detect_ramdisk_compression() {
 		02214c18*) echo lz4_legacy ;;
 		*) echo none ;;
 	esac
-}
-
-patch_vendor_boot_single_modules() {
-	local vendor_boot_dir=${home}/_vendor_boot
-	local shared_modules_dir=${home}/_modules
-	local vendor_boot_block ramdisk_src out_dir replaced_count ramdisk_compression repacked_img patched_ramdisk
-	local module_src module_name target_path
-	local has_vendor_boot_modules=false has_shared_modules=false
-
-	if [ -d "$vendor_boot_dir" ]; then
-		set -- ${vendor_boot_dir}/*.ko
-		[ -e "$1" ] && has_vendor_boot_modules=true
-	fi
-	if [ -d "$shared_modules_dir" ]; then
-		set -- ${shared_modules_dir}/*.ko
-		[ -e "$1" ] && has_shared_modules=true
-	fi
-	$has_vendor_boot_modules || $has_shared_modules || return 0
-
-	vendor_boot_block=$(find_named_block ${vendor_boot_partition})
-	[ -n "$vendor_boot_block" ] || abort "! Failed to find ${vendor_boot_partition} partition"
-
-	ui_print "- Dumping /${vendor_boot_partition} partition..."
-	dd if=${vendor_boot_block} of=${home}/vendor_boot.img 2>/dev/null || abort "! Failed to dump vendor_boot"
-
-	out_dir=${home}/out
-	rm -rf "$out_dir"
-	mkdir -p "$out_dir"
-
-	ui_print "- Unpacking vendor_boot image with magiskboot..."
-	(
-		cd ${home}
-		${bin}/magiskboot unpack -h vendor_boot.img >/dev/null 2>&1
-	) || abort "! Failed to unpack vendor_boot.img"
-
-	ramdisk_src=$(find ${home} -maxdepth 1 -type f \( -name 'vendor_ramdisk.cpio' -o -name 'ramdisk.cpio' -o -name '*ramdisk*.cpio' \) | head -n1)
-	[ -n "$ramdisk_src" ] || abort "! Failed to locate vendor ramdisk cpio"
-	ramdisk_compression=$(detect_ramdisk_compression "$ramdisk_src")
-	${bin}/magiskboot decompress "$ramdisk_src" ${out_dir}/ramdisk.cpio >/dev/null 2>&1 || \
-		cp -f "$ramdisk_src" ${out_dir}/ramdisk.cpio
-
-	ui_print "- Extracting ramdisk to ${home}/out..."
-	(
-		cd "$out_dir"
-		cpio -idmv < ramdisk.cpio
-	) || abort "! Failed to extract vendor ramdisk"
-
-	replaced_count=0
-	if $has_vendor_boot_modules; then
-		for module_src in ${vendor_boot_dir}/*.ko; do
-			[ -f "$module_src" ] || continue
-			module_name=$(basename "$module_src")
-			target_path=$(find ${out_dir} -type f -path '*/lib/modules/*' -name "$module_name" | head -n1)
-			[ -n "$target_path" ] || continue
-			ui_print "- Replacing ${module_name} in vendor_boot"
-			cp -f "$module_src" "$target_path"
-			replaced_count=$((replaced_count + 1))
-		done
-	fi
-
-	# Also patch shared modules from _modules when the same module exists in vendor_boot ramdisk.
-	if $has_shared_modules; then
-		for module_src in ${shared_modules_dir}/*.ko; do
-			[ -f "$module_src" ] || continue
-			module_name=$(basename "$module_src")
-			[ -f "${vendor_boot_dir}/${module_name}" ] && continue
-			target_path=$(find ${out_dir} -type f -path '*/lib/modules/*' -name "$module_name" | head -n1)
-			[ -n "$target_path" ] || continue
-			ui_print "- Replacing ${module_name} in vendor_boot (shared module)"
-			cp -f "$module_src" "$target_path"
-			replaced_count=$((replaced_count + 1))
-		done
-	fi
-
-	[ "$replaced_count" -gt 0 ] || {
-		ui_print "- No matching vendor_boot modules found to replace"
-		rm -rf "$out_dir"
-		return 0
-	}
-
-	(
-		cd "$out_dir"
-		rm -f ramdisk-new.cpio
-		find . -mindepth 1 ! -name 'ramdisk.cpio' -print | LC_ALL=C sort | cpio -o -H newc > ramdisk-new.cpio 2>/dev/null
-	) || abort "! Failed to rebuild ramdisk cpio"
-	patched_ramdisk=${out_dir}/ramdisk-new.cpio
-	if [ "$ramdisk_compression" != "none" ]; then
-		ui_print "- Recompressing vendor ramdisk (${ramdisk_compression})..."
-		${bin}/magiskboot compress=${ramdisk_compression} ${out_dir}/ramdisk-new.cpio ${out_dir}/ramdisk-patched.cpio >/dev/null 2>&1 || \
-			abort "! Failed to recompress vendor ramdisk"
-		patched_ramdisk=${out_dir}/ramdisk-patched.cpio
-	fi
-	cp -f "$patched_ramdisk" "$ramdisk_src"
-
-	ui_print "- Repacking vendor_boot image with magiskboot..."
-	(
-		cd ${home}
-		${bin}/magiskboot repack vendor_boot.img >/dev/null 2>&1
-	) || abort "! Failed to repack vendor_boot.img"
-
-	repacked_img=$(find ${home} -maxdepth 1 -type f \( -name 'new-boot.img' -o -name 'new-vendor_boot.img' -o -name 'new*.img' \) | head -n1)
-	[ -n "$repacked_img" ] || abort "! Failed to locate repacked vendor_boot image"
-	mv -f "$repacked_img" ${home}/vendor_boot.img
-	vendor_boot_single_module_updated=true
-	rm -rf "$out_dir"
 }
 
 # Check snapshot status
@@ -425,10 +195,6 @@ else
 fi
 umount /vendor_dlkm
 
-system_dlkm_block=$(find_named_block ${system_dlkm_partition})
-do_system_dlkm_update=false
-[ -n "$system_dlkm_block" ] && do_system_dlkm_update=true
-
 # Fix unable to mount image as read-write in recovery
 $BOOTMODE || setenforce 0
 
@@ -436,9 +202,6 @@ $BOOTMODE || setenforce 0
 #else
 	# Dump vendor_dlkm partition image
 	dd if=${vendor_dlkm_block} of=${home}/vendor_dlkm.img
-	if $do_system_dlkm_update; then
-		dd if=${system_dlkm_block} of=${home}/system_dlkm.img
-	fi
 
 	# Backup kernel and vendor_dlkm image
 	#if $do_backup_flag; then
@@ -511,71 +274,11 @@ $BOOTMODE || setenforce 0
 			abort "! Failed to locate ${vendor_dlkm_partition} erofs root directory"
 	fi
 	search_vendor_dlkm_modules_dir=${extract_vendor_dlkm_modules_dir}
-	if $do_system_dlkm_update; then
-		ui_print "- Unpacking /${system_dlkm_partition} partition..."
-		extract_system_dlkm_dir=${home}/_extract_system_dlkm
-		mkdir -p $extract_system_dlkm_dir
-		system_dlkm_is_ext4=false
-		system_dlkm_erofs_root_dir=""
-		system_dlkm_partition_root_dir=""
-		extract_erofs ${home}/system_dlkm.img $extract_system_dlkm_dir || system_dlkm_is_ext4=true
-		sync
-
-		if $system_dlkm_is_ext4; then
-			ui_print "- /${system_dlkm_partition} partition seems to be in ext4 file system."
-			${bin}/e2fsck -y -E unshare_blocks ${home}/system_dlkm.img || \
-				abort "! Failed to unshare ext4 blocks in ${system_dlkm_partition}.img"
-			mount ${home}/system_dlkm.img $extract_system_dlkm_dir -o rw -t ext4 || \
-				abort "! Failed to mount system_dlkm.img as read-write!"
-			system_dlkm_partition_root_dir=${extract_system_dlkm_dir}
-		fi
-		extract_system_dlkm_modules_dirs=$(resolve_all_modules_dirs "$extract_system_dlkm_dir" "$system_dlkm_partition") || \
-			abort "! Failed to locate ${system_dlkm_partition} modules directory"
-		if ! $system_dlkm_is_ext4; then
-			system_dlkm_erofs_root_dir=$(resolve_erofs_root_dir "$extract_system_dlkm_dir" "$system_dlkm_partition") || \
-				abort "! Failed to locate ${system_dlkm_partition} erofs root directory"
-			system_dlkm_partition_root_dir=${system_dlkm_erofs_root_dir}
-		fi
-		extract_system_dlkm_modules_dir=$(echo "$extract_system_dlkm_modules_dirs" | awk '{print $1}')
-		search_system_dlkm_modules_dir=${extract_system_dlkm_modules_dirs}
-	fi
 
 	ui_print "- Updating /vendor_dlkm image..."
 	cp -f ${home}/_modules/*.ko ${extract_vendor_dlkm_modules_dir}/
 	cp -f ${home}/vertmp ${extract_vendor_dlkm_modules_dir}/vertmp
 	sync
-	if $do_system_dlkm_update; then
-		ui_print "- Updating /${system_dlkm_partition} image..."
-		collect_shared_system_dlkm_modules ${extract_system_dlkm_modules_dir} ${extract_vendor_dlkm_modules_dir}
-		[ -n "$system_dlkm_shared_modules" ] && \
-			ui_print "- Also updating shared modules in /${system_dlkm_partition}: $system_dlkm_shared_modules"
-		system_dlkm_copied_modules=""
-		system_dlkm_failed_modules=""
-		for system_dlkm_target_dir in $extract_system_dlkm_modules_dirs; do
-			if [ "$system_dlkm_target_dir" = "$extract_system_dlkm_modules_dir" ]; then
-				copy_special_modules "$system_dlkm_target_dir" "$system_dlkm_shared_modules" "true" "$system_dlkm_partition_root_dir"
-			else
-				copy_special_modules "$system_dlkm_target_dir" "$system_dlkm_shared_modules" "false" "$system_dlkm_partition_root_dir"
-			fi
-		done
-		[ -n "$system_dlkm_copied_modules" ] && cp -f ${home}/vertmp ${extract_system_dlkm_modules_dir}/vertmp
-		system_dlkm_valid_modules=""
-		for system_dlkm_module in $system_dlkm_copied_modules; do
-			if [ -s "${system_dlkm_partition_root_dir}/${system_dlkm_module}" ]; then
-				system_dlkm_valid_modules="${system_dlkm_valid_modules} ${system_dlkm_module}"
-			else
-				ui_print "! Skipping ${system_dlkm_module} in /${system_dlkm_partition}: post-copy check failed"
-				system_dlkm_failed_modules="${system_dlkm_failed_modules} ${system_dlkm_module}(post-check-failed)"
-				rm -f "${system_dlkm_partition_root_dir}/${system_dlkm_module}"
-			fi
-		done
-		system_dlkm_copied_modules="$system_dlkm_valid_modules"
-		[ -n "$system_dlkm_failed_modules" ] && \
-			ui_print "! Skipped /${system_dlkm_partition} modules:${system_dlkm_failed_modules}"
-		[ -n "$system_dlkm_copied_modules" ] || \
-			ui_print "! No valid modules copied into /${system_dlkm_partition}"
-		sync
-	fi
 
 	if $vendor_dlkm_is_ext4; then
 		set_perm 0 0 0644 ${extract_vendor_dlkm_modules_dir}/vertmp
@@ -593,53 +296,17 @@ $BOOTMODE || setenforce 0
 		rm -rf ${extract_vendor_dlkm_dir}
 	fi
 
-	if $do_system_dlkm_update; then
-		if $system_dlkm_is_ext4; then
-			for system_dlkm_module in ${extract_system_dlkm_modules_dir}/vertmp; do
-				[ -f "$system_dlkm_module" ] || continue
-				set_perm 0 0 0644 "$system_dlkm_module"
-				chcon u:object_r:system_file:s0 "$system_dlkm_module"
-			done
-			for system_dlkm_module in $system_dlkm_copied_modules; do
-				system_dlkm_module=${system_dlkm_partition_root_dir}/${system_dlkm_module}
-				[ -f "$system_dlkm_module" ] || continue
-				set_perm 0 0 0644 "$system_dlkm_module"
-				chcon u:object_r:system_file:s0 "$system_dlkm_module"
-			done
-			umount $extract_system_dlkm_dir
-		else
-			append_erofs_metadata ${extract_system_dlkm_dir} ${system_dlkm_partition} lib/modules/vertmp u:object_r:system_file:s0
-			for system_dlkm_module in $system_dlkm_copied_modules; do
-				[ -f ${system_dlkm_partition_root_dir}/${system_dlkm_module} ] || continue
-				append_erofs_metadata ${extract_system_dlkm_dir} ${system_dlkm_partition} ${system_dlkm_module} u:object_r:system_file:s0
-			done
-			ui_print "- Repacking /${system_dlkm_partition} image..."
-			rm -f ${home}/system_dlkm.img
-			mkfs_erofs ${system_dlkm_erofs_root_dir} ${home}/system_dlkm.img || \
-				abort "! Failed to repack the system_dlkm image!"
-			rm -rf ${extract_system_dlkm_dir}
-		fi
-	fi
-
 	unset vendor_dlkm_is_ext4 vendor_dlkm_free_space extract_vendor_dlkm_dir extract_vendor_dlkm_modules_dir \
-		vendor_dlkm_erofs_root_dir system_dlkm_is_ext4 system_dlkm_erofs_root_dir system_dlkm_partition_root_dir \
-		extract_system_dlkm_dir extract_system_dlkm_modules_dir extract_system_dlkm_modules_dirs \
-		system_dlkm_target_dir search_vendor_dlkm_modules_dir search_system_dlkm_modules_dir \
-		system_dlkm_module system_dlkm_copied_modules system_dlkm_failed_modules \
-		system_dlkm_shared_modules system_dlkm_valid_modules \
-		system_dlkm_shared_module module_src module_name system_match vendor_match build_prop backup_package \
+		vendor_dlkm_erofs_root_dir search_vendor_dlkm_modules_dir \
+		module_src module_name system_match vendor_match build_prop backup_package \
 		backup_images blocklist_expr
 #fi
 
-unset skip_update_flag do_backup_flag vendor_dlkm_block system_dlkm_block do_system_dlkm_update
-
-patch_vendor_boot_single_modules
+unset skip_update_flag do_backup_flag vendor_dlkm_block
 
 
 ########## CUSTOM END ##########
-$vendor_boot_single_module_updated && flash_generic ${vendor_boot_partition}
 flash_generic ${vendor_dlkm_partition}
-[ -f ${home}/system_dlkm.img ] && flash_generic ${system_dlkm_partition}
 
 # Flash kernel to boot
 flash_boot
